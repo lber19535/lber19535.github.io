@@ -1,0 +1,705 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.0.1" rel="stylesheet" type="text/css">
+
+
+  <meta name="keywords" content="Android,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="LOST HOME" type="application/atom+xml">
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.1">
+
+
+
+
+
+
+<meta name="description" content="1.起因最近一直在看 C++ 同时想 C++ 看完后结合 ffpemg 和 qt写一个跨平台的播放器，恰好最近轮到我做组内 Presentation，就想着分析下 Android 中的 Media Server 看看 Google 在做播放架构的时候是怎么做的同时可以用到我后续的开发中。">
+<meta name="keywords" content="Android">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Media Player 学习笔记">
+<meta property="og:url" content="lber19535.github.io/2015/09/16/2015-2015-09-16-Media-Player-学习笔记/index.html">
+<meta property="og:site_name" content="LOST HOME">
+<meta property="og:description" content="1.起因最近一直在看 C++ 同时想 C++ 看完后结合 ffpemg 和 qt写一个跨平台的播放器，恰好最近轮到我做组内 Presentation，就想着分析下 Android 中的 Media Server 看看 Google 在做播放架构的时候是怎么做的同时可以用到我后续的开发中。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://source.android.com/devices/images/ape_fwk_media.png">
+<meta property="og:image" content="http://7xisp0.com1.z0.glb.clouddn.com/media_server_process.png">
+<meta property="og:image" content="http://7xisp0.com1.z0.glb.clouddn.com/media_server_service.png">
+<meta property="og:image" content="http://7xisp0.com1.z0.glb.clouddn.com/mediaplayer_set_data_flow.png">
+<meta property="og:image" content="http://7xisp0.com1.z0.glb.clouddn.com/mediaplayer_class_diagram.png">
+<meta property="og:updated_time" content="2019-03-02T07:53:31.678Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Media Player 学习笔记">
+<meta name="twitter:description" content="1.起因最近一直在看 C++ 同时想 C++ 看完后结合 ffpemg 和 qt写一个跨平台的播放器，恰好最近轮到我做组内 Presentation，就想着分析下 Android 中的 Media Server 看看 Google 在做播放架构的时候是怎么做的同时可以用到我后续的开发中。">
+<meta name="twitter:image" content="https://source.android.com/devices/images/ape_fwk_media.png">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"right","display":"hide"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: 6278212670025893000,
+      author: '博主'
+    }
+  };
+</script>
+
+  <title> Media Player 学习笔记 | LOST HOME </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-62416761-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "http://tajs.qq.com/stats?sId=55861072";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-right page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">LOST HOME</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">YESTERDAY YOU SAID TOMORROW</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-home fa-fw"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-archive fa-fw"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-tags fa-fw"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Media Player 学习笔记
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2015-09-16T17:00:00+08:00" content="2015-09-16">
+              2015-09-16
+            </time>
+          </span>
+
+          
+            <span class="post-category">
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/Android/" itemprop="url" rel="index">
+                    <span itemprop="name">Android</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="1-起因"><a href="#1-起因" class="headerlink" title="1.起因"></a>1.起因</h2><p>最近一直在看 C++ 同时想 C++ 看完后结合 ffpemg 和 qt写一个跨平台的播放器，恰好最近轮到我做组内 Presentation，就想着分析下 Android 中的 Media Server 看看 Google 在做播放架构的时候是怎么做的同时可以用到我后续的开发中。<br><a id="more"></a></p>
+<h2 id="2-Media-Server"><a href="#2-Media-Server" class="headerlink" title="2.Media Server"></a>2.Media Server</h2><p>Media Server 整体的架构师 C/S 架构，C 和 S 之间的通讯是 IPC，具体来说是 Binder。Media Server 中大量的用到了 Binder。整个架构将播放控制、视频、音频、相机等和多媒体有关的这些包装成不同的服务，通过 IPC 解耦。下图是 Google 关于 Android 中 <a href="https://source.android.com/devices/media.html" target="_blank" rel="noopener">Media 引擎</a>的架构做的关系图。</p>
+<p><img src="https://source.android.com/devices/images/ape_fwk_media.png" alt="Media 架构"></p>
+<p>在系统 mediaserver 作为一个单独的进程，负责整个系统的音频视频编解码工作：</p>
+<p><img src="http://7xisp0.com1.z0.glb.clouddn.com/media_server_process.png" alt="media server 进程"></p>
+<p>下面先从 Java 层的调用顺序开始看一下整个调用的流程。</p>
+<h2 id="3-MediaPlayer-调用流程"><a href="#3-MediaPlayer-调用流程" class="headerlink" title="3.MediaPlayer 调用流程"></a>3.MediaPlayer 调用流程</h2><p><a href="https://developer.android.com/reference/android/media/MediaPlayer.html" target="_blank" rel="noopener">MediaPlayer</a> 中涉及到的主要函数都是通过 JNI 来完成的，MediaPlayer.java 对应的是 <a href="https://android.googlesource.com/platform/frameworks/base/+/android-5.1.1_r18/media/jni/android_media_MediaPlayer.cpp" target="_blank" rel="noopener">android_media_MediaPlayer.cpp</a>。其中的对应关系如下，省略了一部分不是特别重要的。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">static</span> JNINativeMethod gMethods[] = &#123;</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="string">"nativeSetDataSource"</span>,</span><br><span class="line">        <span class="string">"(Landroid/os/IBinder;Ljava/lang/String;[Ljava/lang/String;"</span></span><br><span class="line">        <span class="string">"[Ljava/lang/String;)V"</span>,</span><br><span class="line">        (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceAndHeaders</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;<span class="string">"_setDataSource"</span>,       <span class="string">"(Ljava/io/FileDescriptor;JJ)V"</span>,    (<span class="keyword">void</span> *)android_media_MediaPlayer_setDataSourceFD&#125;,</span><br><span class="line">    &#123;<span class="string">"_prepare"</span>,            <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_prepare&#125;,</span><br><span class="line">    &#123;<span class="string">"prepareAsync"</span>,        <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_prepareAsync&#125;,</span><br><span class="line">    &#123;<span class="string">"_start"</span>,              <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_start&#125;,</span><br><span class="line">    &#123;<span class="string">"_stop"</span>,               <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_stop&#125;,</span><br><span class="line">    &#123;<span class="string">"getVideoWidth"</span>,       <span class="string">"()I"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_getVideoWidth&#125;,</span><br><span class="line">    &#123;<span class="string">"getVideoHeight"</span>,      <span class="string">"()I"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_getVideoHeight&#125;,</span><br><span class="line">    &#123;<span class="string">"seekTo"</span>,              <span class="string">"(I)V"</span>,                             (<span class="keyword">void</span> *)android_media_MediaPlayer_seekTo&#125;,</span><br><span class="line">    &#123;<span class="string">"_pause"</span>,              <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_pause&#125;,</span><br><span class="line">    &#123;<span class="string">"isPlaying"</span>,           <span class="string">"()Z"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_isPlaying&#125;,</span><br><span class="line">    &#123;<span class="string">"getCurrentPosition"</span>,  <span class="string">"()I"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_getCurrentPosition&#125;,</span><br><span class="line">    &#123;<span class="string">"getDuration"</span>,         <span class="string">"()I"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_getDuration&#125;,</span><br><span class="line">    &#123;<span class="string">"_release"</span>,            <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_release&#125;,</span><br><span class="line">    &#123;<span class="string">"_reset"</span>,              <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_reset&#125;,</span><br><span class="line">    &#123;<span class="string">"native_init"</span>,         <span class="string">"()V"</span>,                              (<span class="keyword">void</span> *)android_media_MediaPlayer_native_init&#125;,</span><br><span class="line">    &#123;<span class="string">"native_setup"</span>,        <span class="string">"(Ljava/lang/Object;)V"</span>,            (<span class="keyword">void</span> *)android_media_MediaPlayer_native_setup&#125;,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>Java 这边的调用顺序通常是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">MediaPlayer mp = <span class="keyword">new</span> MediaPlayer();</span><br><span class="line">mp.setDataSource(<span class="string">"/sdcard/test.mp3"</span>);</span><br><span class="line">mp.prepare();</span><br><span class="line">mp.start();</span><br><span class="line">mp.pause();</span><br><span class="line">mp.stop();</span><br><span class="line">mp.release();</span><br></pre></td></tr></table></figure>
+<p>下面将按照这个顺序一步一步来分析。</p>
+<h3 id="3-1-构造函数"><a href="#3-1-构造函数" class="headerlink" title="3.1 构造函数"></a>3.1 构造函数</h3><p>在 MediaPlayer 的构造函数中调用了 native 的 android_media_MediaPlayer_native_setup 方法:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">MediaPlayer</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Native setup requires a weak reference to our object.</span></span><br><span class="line"><span class="comment">     * It's easier to create it here than in C++.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    native_setup(<span class="keyword">new</span> WeakReference&lt;MediaPlayer&gt;(<span class="keyword">this</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>setup 方法中创建了 MediaPlayer，同时也设置了回调函数。其中最后一行的 setMediaPlayer 将 MediaPlayer 的指针保存成一个 Java 对象，之后可以看到 getMediaPlayer 通过同样的方法获取到该对象的指针。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">void</span></span><br><span class="line">android_media_MediaPlayer_native_setup(JNIEnv *env, jobject thiz, jobject weak_this)</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"native_setup"</span>);</span><br><span class="line">    sp&lt;MediaPlayer&gt; mp = <span class="keyword">new</span> MediaPlayer();</span><br><span class="line">    <span class="keyword">if</span> (mp == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        jniThrowException(env, <span class="string">"java/lang/RuntimeException"</span>, <span class="string">"Out of memory"</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// create new listener and give it to MediaPlayer</span></span><br><span class="line">    sp&lt;JNIMediaPlayerListener&gt; listener = <span class="keyword">new</span> JNIMediaPlayerListener(env, thiz, weak_this);</span><br><span class="line">    mp-&gt;setListener(listener);</span><br><span class="line">    <span class="comment">// Stow our new C++ MediaPlayer in an opaque field in the Java object.</span></span><br><span class="line">    setMediaPlayer(env, thiz, mp);</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> sp&lt;MediaPlayer&gt; setMediaPlayer(JNIEnv* env, jobject thiz, <span class="keyword">const</span> sp&lt;MediaPlayer&gt;&amp; player)</span><br><span class="line">&#123;</span><br><span class="line">    Mutex::<span class="function">Autolock <span class="title">l</span><span class="params">(sLock)</span></span>;</span><br><span class="line">    <span class="comment">/* 由于指针的大小和 long 的大小是一样的，所以这里的 get 和 set 可以将</span></span><br><span class="line"><span class="comment">       MediaPlayer 的指针取出或存入*/</span></span><br><span class="line">    sp&lt;MediaPlayer&gt; old = (MediaPlayer*)env-&gt;GetLongField(thiz, fields.context);</span><br><span class="line">    <span class="comment">// 判断 mediaplayer 是否为空指针，如果不是，这 sp 引用计数加1</span></span><br><span class="line">    <span class="keyword">if</span> (player.get()) &#123;</span><br><span class="line">        player-&gt;incStrong((<span class="keyword">void</span>*)setMediaPlayer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 如果之前存过 mediaplayer，检查之前存的是否为空，如果不为空，则引用计数减1</span></span><br><span class="line">    <span class="keyword">if</span> (old != <span class="number">0</span>) &#123;</span><br><span class="line">        old-&gt;decStrong((<span class="keyword">void</span>*)setMediaPlayer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将新的 mediaplayer 指针存入 Java 对象中</span></span><br><span class="line">    env-&gt;SetLongField(thiz, fields.context, (jlong)player.get());</span><br><span class="line">    <span class="keyword">return</span> old;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里解释两点：</p>
+<p><strong>1</strong>.由于指针的大小和 long 的大小是一样的，所以可以通过 SetLongField 和 GetLongField 来保存函数指针。<br><strong>2</strong>.由于 shared_ptr 和 weak_ptr 是 C++11 中才加入的，所以源码中实现了 sp 和 wp 作为智能指针来使用，这里可以看到代码中手动控制了引用计数。</p>
+<p>现在一个 mediaplayer 对象就创建好了，其他的 jni 中对应的方法几乎都是调用 mediaplayer 来完成的。</p>
+<h3 id="3-2-设置数据源"><a href="#3-2-设置数据源" class="headerlink" title="3.2 设置数据源"></a>3.2 设置数据源</h3><p><a href="https://developer.android.com/reference/android/media/MediaPlayer.html#setDataSource%28java.io.FileDescriptor%29" target="_blank" rel="noopener">setDataSource</a> 对应的是 jni 中的这个函数：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">android_media_MediaPlayer_setDataSourceFD</span><span class="params">(JNIEnv *env, jobject thiz, jobject fileDescriptor, jlong offset, jlong length)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    sp&lt;MediaPlayer&gt; mp = getMediaPlayer(env, thiz);</span><br><span class="line">    <span class="comment">// mediaplayer 为空</span></span><br><span class="line">    <span class="keyword">if</span> (mp == <span class="literal">NULL</span> ) &#123;</span><br><span class="line">        jniThrowException(env, <span class="string">"java/lang/IllegalStateException"</span>, <span class="literal">NULL</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 文件描述符为空</span></span><br><span class="line">    <span class="keyword">if</span> (fileDescriptor == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        jniThrowException(env, <span class="string">"java/lang/IllegalArgumentException"</span>, <span class="literal">NULL</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">int</span> fd = jniGetFDFromFileDescriptor(env, fileDescriptor);</span><br><span class="line">    ALOGV(<span class="string">"setDataSourceFD: fd %d"</span>, fd);</span><br><span class="line">    <span class="comment">// 调用 mp-&gt;setDataSource(fd, offset, length) 为 mediaplayer 设置数据源</span></span><br><span class="line">    process_media_player_call( env, thiz, mp-&gt;setDataSource(fd, offset, length), <span class="string">"java/io/IOException"</span>, <span class="string">"setDataSourceFD failed."</span> );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到函数开始先做了空指针的判断，之后调用了 mp-&gt;setDataSource(fd, offset, length) 方法来给 mediaplayer 设置数据源，同时 process_media_player_call 函数对 setDataSource 返回值做判断是否设置成功以及失败后抛出异常。</p>
+<p>mediaplayer 中的 setDataSource 函数分为三种，分别对应播放文件、网络和流三种情况，现在只看播放文件的情况：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> MediaPlayer::setDataSource(<span class="keyword">int</span> fd, <span class="keyword">int64_t</span> offset, <span class="keyword">int64_t</span> length)</span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"setDataSource(%d, %"</span> PRId64 <span class="string">", %"</span> PRId64 <span class="string">")"</span>, fd, offset, length);</span><br><span class="line">    <span class="keyword">status_t</span> err = UNKNOWN_ERROR;</span><br><span class="line">    <span class="comment">// 获取 MediaPlayerService 接口</span></span><br><span class="line">    <span class="keyword">const</span> sp&lt;IMediaPlayerService&gt;&amp; service(getMediaPlayerService());</span><br><span class="line">    <span class="keyword">if</span> (service != <span class="number">0</span>) &#123;</span><br><span class="line">    	<span class="comment">// 获取 MediaPlayer 接口</span></span><br><span class="line">        sp&lt;IMediaPlayer&gt; player(service-&gt;create(<span class="keyword">this</span>, mAudioSessionId));</span><br><span class="line">        <span class="comment">// 设置数据源</span></span><br><span class="line">        <span class="keyword">if</span> ((NO_ERROR != doSetRetransmitEndpoint(player)) ||</span><br><span class="line">            (NO_ERROR != player-&gt;setDataSource(fd, offset, length))) &#123;</span><br><span class="line">           player.clear();</span><br><span class="line">        &#125;</span><br><span class="line">        err = attachNewPlayer(player);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> err;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个函数分为三个部分，逐个分析。</p>
+<h4 id="3-2-1-获取-MediaPlayerService-接口"><a href="#3-2-1-获取-MediaPlayerService-接口" class="headerlink" title="3.2.1 获取 MediaPlayerService 接口"></a>3.2.1 获取 MediaPlayerService 接口</h4><p>这里先是调用了 getMediaPlayerService 方法获取到一个 IMediaPlayerService</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">/*static*/</span><span class="keyword">const</span> sp&lt;IMediaPlayerService&gt; &amp;IMediaDeathNotifier::getMediaPlayerService()</span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"getMediaPlayerService"</span>);</span><br><span class="line">    Mutex::Autolock _l(sServiceLock);</span><br><span class="line">    <span class="keyword">if</span> (sMediaPlayerService == <span class="number">0</span>) &#123;</span><br><span class="line">    	<span class="comment">// 获取 servicemanager</span></span><br><span class="line">        sp&lt;IServiceManager&gt; sm = defaultServiceManager();</span><br><span class="line">        sp&lt;IBinder&gt; binder;</span><br><span class="line">        <span class="keyword">do</span> &#123;</span><br><span class="line">       	    <span class="comment">// 获取对应的 binder</span></span><br><span class="line">            binder = sm-&gt;getService(String16(<span class="string">"media.player"</span>));</span><br><span class="line">            <span class="keyword">if</span> (binder != <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            ALOGW(<span class="string">"Media player service not published, waiting..."</span>);</span><br><span class="line">            usleep(<span class="number">500000</span>); <span class="comment">// 0.5 s</span></span><br><span class="line">        &#125; <span class="keyword">while</span> (<span class="literal">true</span>);</span><br><span class="line">        <span class="keyword">if</span> (sDeathNotifier == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            sDeathNotifier = <span class="keyword">new</span> DeathNotifier();</span><br><span class="line">        &#125;</span><br><span class="line">        binder-&gt;linkToDeath(sDeathNotifier);</span><br><span class="line">        <span class="comment">// asInterface 获取 binder 中的 remote 对象</span></span><br><span class="line">        sMediaPlayerService = interface_cast&lt;IMediaPlayerService&gt;(binder);</span><br><span class="line">    &#125;</span><br><span class="line">    ALOGE_IF(sMediaPlayerService == <span class="number">0</span>, <span class="string">"no media player service!?"</span>);</span><br><span class="line">    <span class="keyword">return</span> sMediaPlayerService;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>IServiceManager 是 IInterface 类型，和用 AIDL 生成的接口相同，IInterface 中包含了 binder 和 remote 两个东西。在 ndk 中对应的是 BnInterface 和 BpInterface。在 Java 中，本地 Client 通过 ServiceConnection 中的 onServiceConnected(ComponentName name, IBinder service) 方法获得 Service 中在 onBind 时候返回的 binder，同理，这里通过 ServiceManager 的 getService 获得和 media.player 这个 Service 通信用的 binder。</p>
+<p>到这里为止我们只拿到了 media.player Service 的 binder，要想调用接口中的方法还需要通过 asInterface 方法来获得与之对应的 IInterface 接口。这里的 interface_cast<imediaplayerservice>(binder) 方法就可以获得对应的接口，那么 <a href="https://android.googlesource.com/platform/frameworks/native/+/jb-mr1-dev/include/binder/IInterface.h" target="_blank" rel="noopener">interface_cast</a> 是怎么做到的呢，其实很简单，利用了模板封装了 asInterface 的操作：</imediaplayerservice></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> INTERFACE&gt; <span class="keyword">inline</span> sp&lt;INTERFACE&gt; interface_cast(<span class="keyword">const</span> sp&lt;IBinder&gt;&amp; obj)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> INTERFACE::asInterface(obj);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在我们就拿到了 media.player Service 的接口。</p>
+<p>看到这里会有一个疑问，这个 media.player 的 Service 是什么时候启动的呢。我们根据 media.player 这个线索找到了下面的代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">void</span> MediaPlayerService::instantiate() &#123;</span><br><span class="line">    defaultServiceManager()-&gt;addService(String16(<span class="string">"media.player"</span>), <span class="keyword">new</span> MediaPlayerService());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc __unused, <span class="keyword">char</span>** argv)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    sp&lt;ProcessState&gt; proc(ProcessState::self());</span><br><span class="line">    sp&lt;IServiceManager&gt; sm = defaultServiceManager();</span><br><span class="line">    ALOGI(<span class="string">"ServiceManager: %p"</span>, sm.get());</span><br><span class="line">    AudioFlinger::instantiate();</span><br><span class="line">    <span class="comment">// 就是这里啦</span></span><br><span class="line">    MediaPlayerService::instantiate();</span><br><span class="line">    <span class="comment">// 照相机</span></span><br><span class="line">    CameraService::instantiate();</span><br><span class="line">    <span class="comment">// 音频</span></span><br><span class="line">    AudioPolicyService::instantiate();</span><br><span class="line">    <span class="comment">// 语音识别</span></span><br><span class="line">    SoundTriggerHwService::instantiate();</span><br><span class="line">    registerExtensions();</span><br><span class="line">    ProcessState::self()-&gt;startThreadPool();</span><br><span class="line">    IPCThreadState::self()-&gt;joinThreadPool();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中 MediaPlayerService 位于 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/media/libmediaplayerservice/MediaPlayerService.cpp" target="_blank" rel="noopener">MediaPlayerService.cpp</a> 中，而 main 函数位于 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/media/mediaserver/main_mediaserver.cpp" target="_blank" rel="noopener">main_mediaserver.cpp</a>。还记得在本文最开始的那张图么，其中的 mediaserver 对应的就是这个。它是在开机的时候启动的，被写在了启动脚本中：</p>
+<p><img src="http://7xisp0.com1.z0.glb.clouddn.com/media_server_service.png" alt="mediaserver 启动脚本"></p>
+<p>这样在系统启动的时候这个进程就开启了，同时里面的 Service 也就启动了。</p>
+<h4 id="3-2-2-获取-MediaPlayer-接口"><a href="#3-2-2-获取-MediaPlayer-接口" class="headerlink" title="3.2.2 获取 MediaPlayer 接口"></a>3.2.2 获取 MediaPlayer 接口</h4><p>service-&gt;create(this, mAudioSessionId) 方法通过 IPC 的方式调用 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/media/libmediaplayerservice/MediaPlayerService.cpp" target="_blank" rel="noopener">MediaPlayerService</a> 中的 create 方法获得 <a href="https://android.googlesource.com/platform/frameworks/av/+/master/media/libmedia/IMediaPlayer.cpp" target="_blank" rel="noopener">IMediaPlayer</a>，IMediaPlayer 从名字就可以看出是一个 IInterface，所以 MediaPlayer 也是通过 IPC 来调用的。先看这个方法做了什么：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">sp&lt;IMediaPlayer&gt; MediaPlayerService::create(<span class="keyword">const</span> sp&lt;IMediaPlayerClient&gt;&amp; client, <span class="keyword">int</span> audioSessionId)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">pid_t</span> pid = IPCThreadState::self()-&gt;getCallingPid();</span><br><span class="line">    <span class="keyword">int32_t</span> connId = android_atomic_inc(&amp;mNextConnId);</span><br><span class="line">    <span class="comment">// MediaPlayerClient</span></span><br><span class="line">    sp&lt;Client&gt; c = <span class="keyword">new</span> Client(</span><br><span class="line">            <span class="keyword">this</span>, pid, connId, client, audioSessionId,</span><br><span class="line">            IPCThreadState::self()-&gt;getCallingUid());</span><br><span class="line">    ALOGV(<span class="string">"Create new client(%d) from pid %d, uid %d, "</span>, connId, pid,</span><br><span class="line">         IPCThreadState::self()-&gt;getCallingUid());</span><br><span class="line">    wp&lt;Client&gt; w = c;</span><br><span class="line">    &#123;</span><br><span class="line">        Mutex::<span class="function">Autolock <span class="title">lock</span><span class="params">(mLock)</span></span>;</span><br><span class="line">        <span class="comment">// 管理 Client</span></span><br><span class="line">        mClients.add(w);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> c;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先调用的时候传的参数是 MediaPlayer 本身，MediaPlayer 除了继承 IMediaDeathNotifier 同时还继承了 BnMediaPlayerClient，而 BnMediaPlayerClient 又继承了 BnInterface<imediaplayerclient>，所以这里的参数列表是一个 client 引用。其中 Client 的实现也在 MediaPlayerService.cpp 这个文件中，他的构造函数用来保存这些对象：</imediaplayerclient></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">MediaPlayerService::Client::Client(</span><br><span class="line">        <span class="keyword">const</span> sp&lt;MediaPlayerService&gt;&amp; service, <span class="keyword">pid_t</span> pid,</span><br><span class="line">        <span class="keyword">int32_t</span> connId, <span class="keyword">const</span> sp&lt;IMediaPlayerClient&gt;&amp; client,</span><br><span class="line">        <span class="keyword">int</span> audioSessionId, <span class="keyword">uid_t</span> uid)</span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"Client(%d) constructor"</span>, connId);</span><br><span class="line">    mPid = pid;</span><br><span class="line">    mConnId = connId;</span><br><span class="line">    mService = service;</span><br><span class="line">    mClient = client;</span><br><span class="line">    mLoop = <span class="literal">false</span>;</span><br><span class="line">    mStatus = NO_INIT;</span><br><span class="line">    mAudioSessionId = audioSessionId;</span><br><span class="line">    mUID = uid;</span><br><span class="line">    mRetransmitEndpointValid = <span class="literal">false</span>;</span><br><span class="line">    mAudioAttributes = <span class="literal">NULL</span>;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> CALLBACK_ANTAGONIZER</span></span><br><span class="line">    ALOGD(<span class="string">"create Antagonizer"</span>);</span><br><span class="line">    mAntagonizer = <span class="keyword">new</span> Antagonizer(notify, <span class="keyword">this</span>);</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后 create 方法返回一个 MediaPlayer 的接口，这个接口通过 IPC 用来调用 Client 中的函数。</p>
+<h4 id="3-2-3-设置数据源"><a href="#3-2-3-设置数据源" class="headerlink" title="3.2.3 设置数据源"></a>3.2.3 设置数据源</h4><p>经过了之前的折腾，我们先拿到了 MediaPlayerService 的接口，通过 MediaPlayerService 的接口又拿到了 MediaPlayer 的接口，接下来就要进行这个函数的最终目的<strong>设置数据源</strong>。</p>
+<p>同样是通过 IPC 调用了 MediaPlayer 的 setDataSource，定义如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> MediaPlayerService::Client::setDataSource(<span class="keyword">int</span> fd, <span class="keyword">int64_t</span> offset, <span class="keyword">int64_t</span> length)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 前面是一些输出要设置的数据源的信息的 log</span></span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 获取播放器类型</span></span><br><span class="line">    player_type playerType = MediaPlayerFactory::getPlayerType(<span class="keyword">this</span>, fd, offset, length);</span><br><span class="line">    <span class="comment">// 创建播放器</span></span><br><span class="line">    sp&lt;MediaPlayerBase&gt; p = setDataSource_pre(playerType);</span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> NO_INIT;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// now set data source</span></span><br><span class="line">    setDataSource_post(p, p-&gt;setDataSource(fd, offset, length));</span><br><span class="line">    <span class="keyword">return</span> mStatus;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先是获取播放器类型，播放器类型定义在 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/include/media/MediaPlayerInterface.h" target="_blank" rel="noopener">MediaPlayerInterface.h</a> 中：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">enum</span> player_type &#123;</span><br><span class="line">    PV_PLAYER = <span class="number">1</span>,</span><br><span class="line">    SONIVOX_PLAYER = <span class="number">2</span>,</span><br><span class="line">    STAGEFRIGHT_PLAYER = <span class="number">3</span>,</span><br><span class="line">    NU_PLAYER = <span class="number">4</span>,</span><br><span class="line">    <span class="comment">// Test players are available only in the 'test' and 'eng' builds.</span></span><br><span class="line">    <span class="comment">// The shared library with the test player is passed passed as an</span></span><br><span class="line">    <span class="comment">// argument to the 'test:' url in the setDataSource call.</span></span><br><span class="line">    TEST_PLAYER = <span class="number">5</span>,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>下面说下这几种类型是做什么的，其中的每一个都对应一个工厂来创建对应的 Player，由于 PV_PLAYER 已经被抛弃了，所以在 5.1 的源码里并没有出现它</p>
+<p>1.<strong>PV_PLAYER</strong>    这个类型是 Android 最初采用的 OpenCore，由于太臃肿已经被抛弃<br>2.<strong>SONIVOX_PLAYER</strong>   用来处理 midi 相关<br>3.<strong>NU_PLAYER</strong>    全能型，在 5.x 上处于可选<br>4.<strong>STAGEFRIGHT_PLAYER</strong>    5.x 之前的主力即 awesome player ，可以胜任除 midi 外全部的工作<br>5.<strong>TEST_PLAYER</strong>    测试用</p>
+<p>这些 player 都是由对应的 factory 创建的，对应的实现在 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/media/libmediaplayerservice/MediaPlayerFactory.cpp" target="_blank" rel="noopener">MediaPlayerFactory.cpp</a> 中，其中的代码比较简单，这里就不分析了，主要是匹配不同类型对应不同的分数，然后选取分高的 player 创建。当前的主力是 STAGEFRIGHT_PLAYER 也就是 awesome player，而 NU_PLAYER  是未来的主力，从 Android M 目前的<a href="https://android.googlesource.com/platform/frameworks/av/+/android-m-preview-2/media/libmediaplayerservice/MediaPlayerFactory.cpp" target="_blank" rel="noopener">源码</a>中也可以看出代码中只剩下了 NU_PLAYER 和 STAGEFRIGHT_PLAYER，其中 NU_PLAYER 负责网络和流的播放，STAGEFRIGHT_PLAYER 负责有 DRM 和文件的播放。</p>
+<p>这里我们就以目前的主力 STAGEFRIGHT_PLAYER 播放器继续往下分析。获取到播放器类型后就到了<strong>创建播放器</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">sp&lt;MediaPlayerBase&gt; MediaPlayerService::Client::setDataSource_pre(player_type playerType)</span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// create the right type of player</span></span><br><span class="line">    sp&lt;MediaPlayerBase&gt; p = createPlayer(playerType);</span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> p;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br><span class="line">sp&lt;MediaPlayerBase&gt; MediaPlayerService::Client::createPlayer(player_type playerType)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// mPlayer 是当前已经有的 player，如果是刚创建这个对象，</span></span><br><span class="line">    <span class="comment">// 那么 player 是 null 需要创建新的 player</span></span><br><span class="line">    <span class="comment">// 如果创建过了了则对比下需要用到的 player 类型，避免重复创建</span></span><br><span class="line">    sp&lt;MediaPlayerBase&gt; p = mPlayer;</span><br><span class="line">    <span class="keyword">if</span> ((p != <span class="literal">NULL</span>) &amp;&amp; (p-&gt;playerType() != playerType)) &#123;</span><br><span class="line">        ALOGV(<span class="string">"delete player"</span>);</span><br><span class="line">        p.clear();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        p = MediaPlayerFactory::createPlayer(playerType, <span class="keyword">this</span>, notify);</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里从 MediaPlayerFactory 创建了对应的播放器，之后使用创建好的 player 设置数据源：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> StagefrightPlayer::setDataSource(<span class="keyword">int</span> fd, <span class="keyword">int64_t</span> offset, <span class="keyword">int64_t</span> length) &#123;</span><br><span class="line">    ALOGV(<span class="string">"setDataSource(%d, %lld, %lld)"</span>, fd, offset, length);</span><br><span class="line">    <span class="keyword">return</span> mPlayer-&gt;setDataSource(dup(fd), offset, length);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里的 mPlayer 就是 AwesomePlayer，AwesomePlayer 在 StagefrightPlayer 类的构造函数中创建：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">StagefrightPlayer::StagefrightPlayer(): mPlayer(<span class="keyword">new</span> AwesomePlayer) &#123;</span><br><span class="line">    ALOGV(<span class="string">"StagefrightPlayer"</span>);</span><br><span class="line">    mPlayer-&gt;setListener(<span class="keyword">this</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从 <a href="https://android.googlesource.com/platform/frameworks/av/+/android-5.1.1_r18/media/libmediaplayerservice/StagefrightPlayer.cpp" target="_blank" rel="noopener">StagefrightPlayer</a> 的源码可以看到对象中的 AwesomePlayer 来完成。代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> AwesomePlayer::setDataSource(</span><br><span class="line">        <span class="keyword">int</span> fd, <span class="keyword">int64_t</span> offset, <span class="keyword">int64_t</span> length) &#123;</span><br><span class="line">    Mutex::<span class="function">Autolock <span class="title">autoLock</span><span class="params">(mLock)</span></span>;</span><br><span class="line">    <span class="comment">// 重置播放器状态</span></span><br><span class="line">    reset_l();</span><br><span class="line">    <span class="comment">// 封装成 DataSource</span></span><br><span class="line">    sp&lt;DataSource&gt; dataSource = <span class="keyword">new</span> FileSource(fd, offset, length);</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> setDataSource_l(dataSource);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">status_t</span> AwesomePlayer::setDataSource_l(<span class="keyword">const</span> sp&lt;DataSource&gt; &amp;dataSource) &#123;</span><br><span class="line">    <span class="comment">// 通过 datasource 创建分离器</span></span><br><span class="line">    sp&lt;MediaExtractor&gt; extractor = MediaExtractor::Create(dataSource);</span><br><span class="line">    <span class="keyword">if</span> (extractor == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> UNKNOWN_ERROR;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (extractor-&gt;getDrmFlag()) &#123;</span><br><span class="line">        checkDrmStatus(dataSource);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 为分离器设置数据源</span></span><br><span class="line">    <span class="keyword">return</span> setDataSource_l(extractor);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个分离器其实和 ffpmeg 中的 demuxer 一样，作用是将数据中的音频部分和视频部分分开，然后获取到对应的类型，调用对应的解码器进行解码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> AwesomePlayer::setDataSource_l(<span class="keyword">const</span> sp&lt;MediaExtractor&gt; &amp;extractor) &#123;</span><br><span class="line">    <span class="comment">// Attempt to approximate overall stream bitrate by summing all</span></span><br><span class="line">    <span class="comment">// tracks' individual bitrates, if not all of them advertise bitrate,</span></span><br><span class="line">    <span class="comment">// we have to fail.</span></span><br><span class="line">    <span class="keyword">int64_t</span> totalBitRate = <span class="number">0</span>;</span><br><span class="line">    mExtractor = extractor;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; extractor-&gt;countTracks(); ++i) &#123;</span><br><span class="line">        sp&lt;MetaData&gt; meta = extractor-&gt;getTrackMetaData(i);</span><br><span class="line">        <span class="keyword">int32_t</span> bitrate;</span><br><span class="line">        <span class="keyword">if</span> (!meta-&gt;findInt32(kKeyBitRate, &amp;bitrate)) &#123;</span><br><span class="line">            <span class="keyword">const</span> <span class="keyword">char</span> *mime;</span><br><span class="line">            CHECK(meta-&gt;findCString(kKeyMIMEType, &amp;mime));</span><br><span class="line">            ALOGV(<span class="string">"track of type '%s' does not publish bitrate"</span>, mime);</span><br><span class="line">            totalBitRate = <span class="number">-1</span>;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 总的码率</span></span><br><span class="line">        totalBitRate += bitrate;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// metadata 就是数据中的元信息</span></span><br><span class="line">    sp&lt;MetaData&gt; fileMeta = mExtractor-&gt;getMetaData();</span><br><span class="line">    <span class="keyword">if</span> (fileMeta != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">int64_t</span> duration;</span><br><span class="line">        <span class="keyword">if</span> (fileMeta-&gt;findInt64(kKeyDuration, &amp;duration)) &#123;</span><br><span class="line">            <span class="comment">// 长度</span></span><br><span class="line">            mDurationUs = duration;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    mBitrate = totalBitRate;</span><br><span class="line">    <span class="keyword">bool</span> haveAudio = <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">bool</span> haveVideo = <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; extractor-&gt;countTracks(); ++i) &#123;</span><br><span class="line">        sp&lt;MetaData&gt; meta = extractor-&gt;getTrackMetaData(i);</span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">char</span> *_mime;</span><br><span class="line">        CHECK(meta-&gt;findCString(kKeyMIMEType, &amp;_mime));</span><br><span class="line">        String8 mime = String8(_mime);</span><br><span class="line">        <span class="comment">// 视频</span></span><br><span class="line">        <span class="keyword">if</span> (!haveVideo &amp;&amp; !strncasecmp(mime.<span class="built_in">string</span>(), <span class="string">"video/"</span>, <span class="number">6</span>)) &#123;</span><br><span class="line">            setVideoSource(extractor-&gt;getTrack(i));</span><br><span class="line">            haveVideo = <span class="literal">true</span>;</span><br><span class="line">            ...</span><br><span class="line">        <span class="comment">// 音频</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!haveAudio &amp;&amp; !strncasecmp(mime.<span class="built_in">string</span>(), <span class="string">"audio/"</span>, <span class="number">6</span>)) &#123;</span><br><span class="line">            setAudioSource(extractor-&gt;getTrack(i));</span><br><span class="line">            haveAudio = <span class="literal">true</span>;</span><br><span class="line">            ...</span><br><span class="line">            <span class="comment">// ogg</span></span><br><span class="line">            <span class="keyword">if</span> (!strcasecmp(mime.<span class="built_in">string</span>(), MEDIA_MIMETYPE_AUDIO_VORBIS)) &#123;</span><br><span class="line">                <span class="comment">// Only do this for vorbis audio, none of the other audio</span></span><br><span class="line">                <span class="comment">// formats even support this ringtone specific hack and</span></span><br><span class="line">                <span class="comment">// retrieving the metadata on some extractors may turn out</span></span><br><span class="line">                <span class="comment">// to be very expensive.</span></span><br><span class="line">                sp&lt;MetaData&gt; fileMeta = extractor-&gt;getMetaData();</span><br><span class="line">                <span class="keyword">int32_t</span> loop;</span><br><span class="line">                <span class="keyword">if</span> (fileMeta != <span class="literal">NULL</span></span><br><span class="line">                        &amp;&amp; fileMeta-&gt;findInt32(kKeyAutoLoop, &amp;loop) &amp;&amp; loop != <span class="number">0</span>) &#123;</span><br><span class="line">                    modifyFlags(AUTO_LOOPING, SET);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (!strcasecmp(mime.<span class="built_in">string</span>(), MEDIA_MIMETYPE_TEXT_3GPP)) &#123;</span><br><span class="line">            addTextSource_l(i, extractor-&gt;getTrack(i));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里通过分离器来确定数据源中是音频还是视频，然后对 player 的 videotrack 和 audiotrack 进行相对应的设置。</p>
+<p>到此为止 setDataSource 的流程就算是走完了，如果继续往下分析的话就到了视频的编解码的知识了。下面先用几张图来梳理一下这个过程（画的不是很规范）。</p>
+<p><strong>流程图：</strong></p>
+<p><img src="http://7xisp0.com1.z0.glb.clouddn.com/mediaplayer_set_data_flow.png" alt="setDataSource流程图"></p>
+<p><strong>类图：</strong></p>
+<p><img src="http://7xisp0.com1.z0.glb.clouddn.com/mediaplayer_class_diagram.png" alt="mediaplayer 类图"></p>
+<p>类图中的 Client 是 MediaPlayerService 的内部类。MediaPlayerService 通过 IPC 和 MediaPlayerService 通信获得 Client，Client 中包含了 StagefrightPlayer，而 StagefrightPlayer 最终通过调用 AwesomePlayer 对应的方法。</p>
+<h3 id="3-3-Prepare"><a href="#3-3-Prepare" class="headerlink" title="3.3 Prepare"></a>3.3 Prepare</h3><p>通过之前的经验我们可以很快的知道 prepare 应该对应的是 AwesomePlayer 中的 prepare：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> AwesomePlayer::prepare() &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> prepare_l();</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">status_t</span> AwesomePlayer::prepare_l() &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">status_t</span> err = prepareAsync_l();</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> mPrepareResult;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">status_t</span> AwesomePlayer::prepareAsync_l() &#123;</span><br><span class="line">    <span class="keyword">if</span> (mFlags &amp; PREPARING) &#123;</span><br><span class="line">        <span class="keyword">return</span> UNKNOWN_ERROR;  <span class="comment">// async prepare already pending</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!mQueueStarted) &#123;</span><br><span class="line">        mQueue.start();</span><br><span class="line">        mQueueStarted = <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    modifyFlags(PREPARING, SET);</span><br><span class="line">    mAsyncPrepareEvent = <span class="keyword">new</span> AwesomeEvent(</span><br><span class="line">            <span class="keyword">this</span>, &amp;AwesomePlayer::onPrepareAsyncEvent);</span><br><span class="line">    mQueue.postEvent(mAsyncPrepareEvent);</span><br><span class="line">    <span class="keyword">return</span> OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>mQueue 是 <a href="https://android.googlesource.com/platform/frameworks/av/+/master/media/libstagefright/TimedEventQueue.cpp" target="_blank" rel="noopener">TimedEventQueue</a>，TimedEventQueue 和 Handler 很相似，使用 pthread 和 队列来管理消息。在这里通过异步方式回调 onPrepareAsyncEvent 方法：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> AwesomePlayer::onPrepareAsyncEvent() &#123;</span><br><span class="line">    Mutex::<span class="function">Autolock <span class="title">autoLock</span><span class="params">(mLock)</span></span>;</span><br><span class="line">    beginPrepareAsync_l();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">void</span> AwesomePlayer::beginPrepareAsync_l() &#123;</span><br><span class="line">    <span class="comment">// 取消 prepare</span></span><br><span class="line">    <span class="keyword">if</span> (mFlags &amp; PREPARE_CANCELLED) &#123;</span><br><span class="line">        ALOGI(<span class="string">"prepare was cancelled before doing anything"</span>);</span><br><span class="line">        abortPrepare(UNKNOWN_ERROR);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 网络媒体</span></span><br><span class="line">    <span class="keyword">if</span> (mUri.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">status_t</span> err = finishSetDataSource_l();</span><br><span class="line">        <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">            abortPrepare(err);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 是否包含视频</span></span><br><span class="line">    <span class="keyword">if</span> (mVideoTrack != <span class="literal">NULL</span> &amp;&amp; mVideoSource == <span class="literal">NULL</span>) &#123;</span><br><span class="line">    	<span class="comment">// 初始化视频解码器</span></span><br><span class="line">        <span class="keyword">status_t</span> err = initVideoDecoder();</span><br><span class="line">        <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">            abortPrepare(err);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 是否包含音频</span></span><br><span class="line">    <span class="keyword">if</span> (mAudioTrack != <span class="literal">NULL</span> &amp;&amp; mAudioSource == <span class="literal">NULL</span>) &#123;</span><br><span class="line">    	<span class="comment">// 初始化音频解码器</span></span><br><span class="line">        <span class="keyword">status_t</span> err = initAudioDecoder();</span><br><span class="line">        <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">            abortPrepare(err);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    modifyFlags(PREPARING_CONNECTED, SET);</span><br><span class="line">    <span class="comment">// 不同的播放源类型</span></span><br><span class="line">    <span class="keyword">if</span> (isStreamingHTTP()) &#123;</span><br><span class="line">    	<span class="comment">// 网络流媒体</span></span><br><span class="line">        postBufferingEvent_l();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    	<span class="comment">// 本地媒体</span></span><br><span class="line">        finishAsyncPrepare_l();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span> AwesomePlayer::finishAsyncPrepare_l() &#123;</span><br><span class="line">    <span class="keyword">if</span> (mIsAsyncPrepare) &#123;</span><br><span class="line">        <span class="keyword">if</span> (mVideoSource == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            notifyListener_l(MEDIA_SET_VIDEO_SIZE, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            notifyVideoSize_l();</span><br><span class="line">        &#125;</span><br><span class="line">        notifyListener_l(MEDIA_PREPARED);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 设置 player 的状态</span></span><br><span class="line">    mPrepareResult = OK;</span><br><span class="line">    modifyFlags((PREPARING|PREPARE_CANCELLED|PREPARING_CONNECTED), CLEAR);</span><br><span class="line">    modifyFlags(PREPARED, SET);</span><br><span class="line">    mAsyncPrepareEvent = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="comment">// 同步线程之间的状态</span></span><br><span class="line">    mPreparedCondition.broadcast();</span><br><span class="line">    <span class="comment">// mAudioTearDown 默认为 false，当暂停的时候通过回调方法将其改为 true</span></span><br><span class="line">    <span class="keyword">if</span> (mAudioTearDown) &#123;</span><br><span class="line">        <span class="keyword">if</span> (mPrepareResult == OK) &#123;</span><br><span class="line">            <span class="keyword">if</span> (mExtractorFlags &amp; MediaExtractor::CAN_SEEK) &#123;</span><br><span class="line">                seekTo_l(mAudioTearDownPosition);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (mAudioTearDownWasPlaying) &#123;</span><br><span class="line">                modifyFlags(CACHE_UNDERRUN, CLEAR);</span><br><span class="line">                play_l();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        mAudioTearDown = <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>经过一番设置后，prepare 的过程也算是完成了。这一部分主要是对 player 的状态进行设置，通过消息机制让让调用端也知道这边的 player 状态。</p>
+<h3 id="3-4-start"><a href="#3-4-start" class="headerlink" title="3.4 start"></a>3.4 start</h3><p>Java 代码这边的 start 方法对应的是 <a href="https://android.googlesource.com/platform/frameworks/av/+/master/media/libmediaplayerservice/StagefrightPlayer.cpp" target="_blank" rel="noopener">StagefrightPlayer</a> 中的 start，其中又调用了 player 的 play 方法</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> StagefrightPlayer::start() &#123;</span><br><span class="line">    ALOGV(<span class="string">"start"</span>);</span><br><span class="line">    <span class="keyword">return</span> mPlayer-&gt;play();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对应的是 AwesomePlayer 中的 play 方法：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> AwesomePlayer::play() &#123;</span><br><span class="line">    ATRACE_CALL();</span><br><span class="line">    Mutex::<span class="function">Autolock <span class="title">autoLock</span><span class="params">(mLock)</span></span>;</span><br><span class="line">    modifyFlags(CACHE_UNDERRUN, CLEAR);</span><br><span class="line">    <span class="keyword">return</span> play_l();</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">status_t</span> AwesomePlayer::play_l() &#123;</span><br><span class="line">    modifyFlags(SEEK_PREVIEW, CLEAR);</span><br><span class="line">    <span class="comment">// 如果正在播放，则什么也不做</span></span><br><span class="line">    <span class="keyword">if</span> (mFlags &amp; PLAYING) &#123;</span><br><span class="line">        <span class="keyword">return</span> OK;</span><br><span class="line">    &#125;</span><br><span class="line">    mMediaRenderingStartGeneration = ++mStartGeneration;</span><br><span class="line">    <span class="comment">// 如果没有之前没有调用 prepare，这里会帮你调用一次，顺便我还做了个实验，create 之后 直接 start 是可以播放的，并没有报错什么的。</span></span><br><span class="line">    <span class="keyword">if</span> (!(mFlags &amp; PREPARED)) &#123;</span><br><span class="line">        <span class="keyword">status_t</span> err = prepare_l();</span><br><span class="line">        <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">            <span class="keyword">return</span> err;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    modifyFlags(PLAYING, SET);</span><br><span class="line">    modifyFlags(FIRST_FRAME, SET);</span><br><span class="line">    <span class="keyword">if</span> (mDecryptHandle != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">int64_t</span> position;</span><br><span class="line">        getPosition(&amp;position);</span><br><span class="line">        mDrmManagerClient-&gt;setPlaybackStatus(mDecryptHandle,</span><br><span class="line">                Playback::START, position / <span class="number">1000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (mAudioSource != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (mAudioPlayer == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            createAudioPlayer_l();</span><br><span class="line">        &#125;</span><br><span class="line">        CHECK(!(mFlags &amp; AUDIO_RUNNING));</span><br><span class="line">        <span class="keyword">if</span> (mVideoSource == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            <span class="comment">// We don't want to post an error notification at this point,</span></span><br><span class="line">            <span class="comment">// the error returned from MediaPlayer::start() will suffice.</span></span><br><span class="line">            <span class="keyword">status_t</span> err = startAudioPlayer_l(<span class="literal">false</span> <span class="comment">/* sendErrorNotification */</span>);</span><br><span class="line">            <span class="comment">// 是否可以硬解音频</span></span><br><span class="line">            <span class="keyword">if</span> ((err != OK) &amp;&amp; mOffloadAudio) &#123;</span><br><span class="line">                ALOGI(<span class="string">"play_l() cannot create offload output, fallback to sw decode"</span>);</span><br><span class="line">                <span class="keyword">int64_t</span> curTimeUs;</span><br><span class="line">                getPosition(&amp;curTimeUs);</span><br><span class="line">                <span class="keyword">delete</span> mAudioPlayer;</span><br><span class="line">                mAudioPlayer = <span class="literal">NULL</span>;</span><br><span class="line">                <span class="comment">// if the player was started it will take care of stopping the source when destroyed</span></span><br><span class="line">                <span class="keyword">if</span> (!(mFlags &amp; AUDIOPLAYER_STARTED)) &#123;</span><br><span class="line">                    mAudioSource-&gt;stop();</span><br><span class="line">                &#125;</span><br><span class="line">                modifyFlags((AUDIO_RUNNING | AUDIOPLAYER_STARTED), CLEAR);</span><br><span class="line">                mOffloadAudio = <span class="literal">false</span>;</span><br><span class="line">                mAudioSource = mOmxSource;</span><br><span class="line">                <span class="keyword">if</span> (mAudioSource != <span class="literal">NULL</span>) &#123;</span><br><span class="line">                    err = mAudioSource-&gt;start();</span><br><span class="line">                    <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">                        mAudioSource.clear();</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        mSeekNotificationSent = <span class="literal">true</span>;</span><br><span class="line">                        <span class="keyword">if</span> (mExtractorFlags &amp; MediaExtractor::CAN_SEEK) &#123;</span><br><span class="line">                            seekTo_l(curTimeUs);</span><br><span class="line">                        &#125;</span><br><span class="line">                        createAudioPlayer_l();</span><br><span class="line">                        <span class="comment">// 播放音频</span></span><br><span class="line">                        err = startAudioPlayer_l(<span class="literal">false</span>);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (err != OK) &#123;</span><br><span class="line">                <span class="keyword">delete</span> mAudioPlayer;</span><br><span class="line">                mAudioPlayer = <span class="literal">NULL</span>;</span><br><span class="line">                modifyFlags((PLAYING | FIRST_FRAME), CLEAR);</span><br><span class="line">                <span class="keyword">if</span> (mDecryptHandle != <span class="literal">NULL</span>) &#123;</span><br><span class="line">                    mDrmManagerClient-&gt;setPlaybackStatus(mDecryptHandle, Playback::STOP, <span class="number">0</span>);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">return</span> err;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// timesource 用于视音频同步，通常来说是根据 audio 中的 timesource 为基准，</span></span><br><span class="line">    <span class="comment">// 这里判断下是否有音频时间和音频播放器，如果没有，则采用系统的时间</span></span><br><span class="line">    <span class="keyword">if</span> (mTimeSource == <span class="literal">NULL</span> &amp;&amp; mAudioPlayer == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        mTimeSource = &amp;mSystemTimeSource;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 播放视频</span></span><br><span class="line">    <span class="keyword">if</span> (mVideoSource != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="comment">// Kick off video playback</span></span><br><span class="line">        postVideoEvent_l();</span><br><span class="line">        <span class="keyword">if</span> (mAudioSource != <span class="literal">NULL</span> &amp;&amp; mVideoSource != <span class="literal">NULL</span>) &#123;</span><br><span class="line">            postVideoLagEvent_l();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 流的结尾</span></span><br><span class="line">    <span class="keyword">if</span> (mFlags &amp; AT_EOS) &#123;</span><br><span class="line">        <span class="comment">// Legacy behaviour, if a stream finishes playing and then</span></span><br><span class="line">        <span class="comment">// is started again, we play from the start...</span></span><br><span class="line">        seekTo_l(<span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">uint32_t</span> params = IMediaPlayerService::kBatteryDataCodecStarted</span><br><span class="line">        | IMediaPlayerService::kBatteryDataTrackDecoder;</span><br><span class="line">    <span class="keyword">if</span> ((mAudioSource != <span class="literal">NULL</span>) &amp;&amp; (mAudioSource != mAudioTrack)) &#123;</span><br><span class="line">        params |= IMediaPlayerService::kBatteryDataTrackAudio;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (mVideoSource != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        params |= IMediaPlayerService::kBatteryDataTrackVideo;</span><br><span class="line">    &#125;</span><br><span class="line">    addBatteryData(params);</span><br><span class="line">    <span class="keyword">if</span> (isStreamingHTTP()) &#123;</span><br><span class="line">        postBufferingEvent_l();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>视频的播放是通过不断的 postVideoEvent_l 来实现画面的播放，postVideoEvent_l 会向队列中 post 一个 videoEvent，这个 event 最终又会触发 AwesomePlayer::onVideoEvent 的方法， onVideoEvent 方法中又会调用 postVideoEvent_l，形成循环，最终实现视频的播放。startAudioPlayer_l 最终会调用到 <a href="https://android.googlesource.com/platform/frameworks/av/+/master/media/libstagefright/AudioPlayer.cpp" target="_blank" rel="noopener">AudioPlayer</a> 播放音频。</p>
+<p>播放的过程到这里就结束了，接下来暂停和结束的部分就相对简单了。</p>
+<h3 id="3-5-pause"><a href="#3-5-pause" class="headerlink" title="3.5 pause"></a>3.5 pause</h3><p>pause 对应到 AwesomePlayer 中是 pause_l 这个方法：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> AwesomePlayer::pause_l(<span class="keyword">bool</span> at_eos) &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 通知客户端播放器暂停</span></span><br><span class="line">    notifyListener_l(MEDIA_PAUSED);</span><br><span class="line">    mMediaRenderingStartGeneration = ++mStartGeneration;</span><br><span class="line">    <span class="comment">// cancel 播放视频的队列</span></span><br><span class="line">    cancelPlayerEvents(<span class="literal">true</span> <span class="comment">/* keepNotifications */</span>);</span><br><span class="line">    <span class="keyword">if</span> (mAudioPlayer != <span class="literal">NULL</span> &amp;&amp; (mFlags &amp; AUDIO_RUNNING)) &#123;</span><br><span class="line">        <span class="comment">// If we played the audio stream to completion we</span></span><br><span class="line">        <span class="comment">// want to make sure that all samples remaining in the audio</span></span><br><span class="line">        <span class="comment">// track's queue are played out.</span></span><br><span class="line">        mAudioPlayer-&gt;pause(at_eos <span class="comment">/* playPendingSamples */</span>);</span><br><span class="line">        <span class="comment">// send us a reminder to tear down the AudioPlayer if paused for too long.</span></span><br><span class="line">        <span class="keyword">if</span> (mOffloadAudio) &#123;</span><br><span class="line">            postAudioTearDownEvent(kOffloadPauseMaxUs);</span><br><span class="line">        &#125;</span><br><span class="line">        modifyFlags(AUDIO_RUNNING, CLEAR);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (mFlags &amp; TEXTPLAYER_INITIALIZED) &#123;</span><br><span class="line">        mTextDriver-&gt;pause();</span><br><span class="line">        modifyFlags(TEXT_RUNNING, CLEAR);</span><br><span class="line">    &#125;</span><br><span class="line">    modifyFlags(PLAYING, CLEAR);</span><br><span class="line">    <span class="keyword">if</span> (mDecryptHandle != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        mDrmManagerClient-&gt;setPlaybackStatus(mDecryptHandle,</span><br><span class="line">                Playback::PAUSE, <span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">return</span> OK;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-6-stop"><a href="#3-6-stop" class="headerlink" title="3.6 stop"></a>3.6 stop</h3><p>然而 stop 和 pause 并没什么区别，代码中的注释也是挺有意思<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">status_t</span> StagefrightPlayer::stop() &#123;</span><br><span class="line">    ALOGV(<span class="string">"stop"</span>);</span><br><span class="line">    <span class="keyword">return</span> pause();  <span class="comment">// what's the difference?</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">status_t</span> StagefrightPlayer::pause() &#123;</span><br><span class="line">    ALOGV(<span class="string">"pause"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> mPlayer-&gt;pause();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="3-7-release"><a href="#3-7-release" class="headerlink" title="3.7 release"></a>3.7 release</h3><p>MeidaPlayer 对应 jni 中的 android_media_MediaPlayer_release 方法：<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">void</span></span><br><span class="line">android_media_MediaPlayer_release(JNIEnv *env, jobject thiz)</span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"release"</span>);</span><br><span class="line">    decVideoSurfaceRef(env, thiz);</span><br><span class="line">    sp&lt;MediaPlayer&gt; mp = setMediaPlayer(env, thiz, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> (mp != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="comment">// this prevents native callbacks after the object is released</span></span><br><span class="line">        mp-&gt;setListener(<span class="number">0</span>);</span><br><span class="line">        mp-&gt;disconnect();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>setListener 注释中说的很明白了，就是把 listener 置空。diconnect 这里是断开了了和 mediaserver 的连接。<br><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> MediaPlayer::disconnect()</span><br><span class="line">&#123;</span><br><span class="line">    ALOGV(<span class="string">"disconnect"</span>);</span><br><span class="line">    sp&lt;IMediaPlayer&gt; p;</span><br><span class="line">    &#123;</span><br><span class="line">        Mutex::Autolock _l(mLock);</span><br><span class="line">        p = mPlayer;</span><br><span class="line">        mPlayer.clear();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (p != <span class="number">0</span>) &#123;</span><br><span class="line">        p-&gt;disconnect();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4.总结"></a>4.总结</h2><p>MediaPlayer 整体上的流程就是这些，其中相对复杂的地方集中在编解码和不同 player 的使用上。编解码相关的主要是 OMX 的硬解和软解，player 主要是不同的 Android 版本对不同的 player 优先使用不同。</p>
+
+      
+    </div>
+    
+    <div>
+      
+        
+      
+    </div>
+
+    <div>
+      
+        
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Android/" rel="tag">#Android</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2015/09/13/2015-2015-09-13-Toolbar的Theme/" rel="next" title="Toolbar的Theme">
+                <i class="fa fa-chevron-left"></i> Toolbar的Theme
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2015/10/09/2015-2015-10-09-C-学习笔记之七/" rel="prev" title="C++学习笔记之七">
+                C++学习笔记之七 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image" src="/images/author.jpg" alt="Bill Lv">
+          <p class="site-author-name" itemprop="name">Bill Lv</p>
+          <p class="site-description motion-element" itemprop="description">YESTERDAY YOU SAID TOMORROW</p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">37</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">10</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+          <div class="feed-link motion-element">
+            <a href="/atom.xml" rel="alternate">
+              <i class="fa fa-rss"></i>
+              RSS
+            </a>
+          </div>
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/lber19535" target="_blank">
+                  
+                    <i class="fa fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/lu-bei-er" target="_blank">
+                  
+                    <i class="fa fa-zhihu"></i>
+                  
+                  Zhihu
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        <div class="links-of-blogroll motion-element">
+          
+        </div>
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-起因"><span class="nav-number">1.</span> <span class="nav-text">1.起因</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Media-Server"><span class="nav-number">2.</span> <span class="nav-text">2.Media Server</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-MediaPlayer-调用流程"><span class="nav-number">3.</span> <span class="nav-text">3.MediaPlayer 调用流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-构造函数"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 构造函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-设置数据源"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 设置数据源</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-1-获取-MediaPlayerService-接口"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 获取 MediaPlayerService 接口</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-2-获取-MediaPlayer-接口"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 获取 MediaPlayer 接口</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-3-设置数据源"><span class="nav-number">3.2.3.</span> <span class="nav-text">3.2.3 设置数据源</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Prepare"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 Prepare</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-start"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 start</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-pause"><span class="nav-number">3.5.</span> <span class="nav-text">3.5 pause</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-6-stop"><span class="nav-number">3.6.</span> <span class="nav-text">3.6 stop</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-7-release"><span class="nav-number">3.7.</span> <span class="nav-text">3.7 release</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-总结"><span class="nav-number">4.</span> <span class="nav-text">4.总结</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bill Lv</span>
+</div>
+
+<div class="powered-by">
+  由 <a class="theme-link" href="http://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.1"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.1"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+  
+  
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.0.1" rel="stylesheet" type="text/css">
+
+
+  <meta name="keywords" content="Android,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="LOST HOME" type="application/atom+xml">
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.0.1">
+
+
+
+
+
+
+<meta name="description" content="Android 中原生的 CheckBoxPreference 没有办法将 Item 和 CheckBox 的点击事件分开，刚好最近工作上有这个需求，本篇文章将在阅读源码的基础上分析如何对这个需求进行定制。代码基于 Android 7.1.1">
+<meta name="keywords" content="Android">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CheckboxPreference 改造">
+<meta property="og:url" content="lber19535.github.io/2017/06/22/2017-2017-06-22-CheckboxPreference-改造/index.html">
+<meta property="og:site_name" content="LOST HOME">
+<meta property="og:description" content="Android 中原生的 CheckBoxPreference 没有办法将 Item 和 CheckBox 的点击事件分开，刚好最近工作上有这个需求，本篇文章将在阅读源码的基础上分析如何对这个需求进行定制。代码基于 Android 7.1.1">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://7xisp0.com1.z0.glb.clouddn.com/checkbox_custom.gif">
+<meta property="og:updated_time" content="2019-03-02T07:53:31.709Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CheckboxPreference 改造">
+<meta name="twitter:description" content="Android 中原生的 CheckBoxPreference 没有办法将 Item 和 CheckBox 的点击事件分开，刚好最近工作上有这个需求，本篇文章将在阅读源码的基础上分析如何对这个需求进行定制。代码基于 Android 7.1.1">
+<meta name="twitter:image" content="http://7xisp0.com1.z0.glb.clouddn.com/checkbox_custom.gif">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: {"position":"right","display":"hide"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: 6278212670025893000,
+      author: '博主'
+    }
+  };
+</script>
+
+  <title> CheckboxPreference 改造 | LOST HOME </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-62416761-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "http://tajs.qq.com/stats?sId=55861072";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-right page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">LOST HOME</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">YESTERDAY YOU SAID TOMORROW</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-home fa-fw"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-archive fa-fw"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-tags fa-fw"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                CheckboxPreference 改造
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            <span class="post-meta-item-icon">
+              <i class="fa fa-calendar-o"></i>
+            </span>
+            <span class="post-meta-item-text">发表于</span>
+            <time itemprop="dateCreated" datetime="2017-06-22T17:00:00+08:00" content="2017-06-22">
+              2017-06-22
+            </time>
+          </span>
+
+          
+            <span class="post-category">
+              &nbsp; | &nbsp;
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/Android/" itemprop="url" rel="index">
+                    <span itemprop="name">Android</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>Android 中原生的 <a href="https://developer.android.com/reference/android/preference/CheckBoxPreference.html" target="_blank" rel="noopener">CheckBoxPreference</a> 没有办法将 Item 和 CheckBox 的点击事件分开，刚好最近工作上有这个需求，本篇文章将在阅读源码的基础上分析如何对这个需求进行定制。代码基于 <a href>Android 7.1.1</a><br><a id="more"></a></p>
+<h2 id="1-PreferenceActivity"><a href="#1-PreferenceActivity" class="headerlink" title="1.PreferenceActivity"></a>1.PreferenceActivity</h2><p>由于任务是要修改系统的 Settings App，所以因为历史原因还在用 Deprecated 的一些接口，这里主要是通过分析源码对修改控件提供一个思路，对于 Deprecated 的接口可以不用在意。</p>
+<p>PreferenceActivity 继承自 ListActivity，默认的 layout 是 <a href="https://android.googlesource.com/platform/frameworks/base/+/android-7.1.1_r43/core/res/res/layout/preference_list_content.xml" target="_blank" rel="noopener">preference_list_content</a>，当在 onCreate 方法发方法中 addPreferencesFromResource 的时候，inflateFromResource 会将你写好的 preference 的 xml 加载进来，解析成对应的 PreferenceScreen，然后通过 setPreferenceScreen 将 PreferenceScreen 丢给 PreferenceManager，最后通过 bindPreferences 将 PreferenceScreen 中的 Preference 的内容绑定到 ListView 中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">PreferenceActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        addPreferencesFromResource(R.xml.testpref);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">PreferenceActivity</span> <span class="keyword">extends</span> <span class="title">ListActivity</span> <span class="keyword">implements</span></span></span><br><span class="line"><span class="class">        <span class="title">PreferenceManager</span>.<span class="title">OnPreferenceTreeClickListener</span>,</span></span><br><span class="line"><span class="class">        <span class="title">PreferenceFragment</span>.<span class="title">OnPreferenceStartFragmentCallback</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">private</span> Handler mHandler = <span class="keyword">new</span> Handler() &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">handleMessage</span><span class="params">(Message msg)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">switch</span> (msg.what) &#123;</span><br><span class="line">                <span class="keyword">case</span> MSG_BIND_PREFERENCES: &#123;</span><br><span class="line">                    bindPreferences();</span><br><span class="line">                &#125; <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">case</span> MSG_BUILD_HEADERS: &#123;</span><br><span class="line">                    ArrayList&lt;Header&gt; oldHeaders = <span class="keyword">new</span> ArrayList&lt;Header&gt;(mHeaders);</span><br><span class="line">                    mHeaders.clear();</span><br><span class="line">                    onBuildHeaders(mHeaders);</span><br><span class="line">                    <span class="keyword">if</span> (mAdapter <span class="keyword">instanceof</span> BaseAdapter) &#123;</span><br><span class="line">                        ((BaseAdapter) mAdapter).notifyDataSetChanged();</span><br><span class="line">                    &#125;</span><br><span class="line">                    Header header = onGetNewHeader();</span><br><span class="line">                    <span class="keyword">if</span> (header != <span class="keyword">null</span> &amp;&amp; header.fragment != <span class="keyword">null</span>) &#123;</span><br><span class="line">                        Header mappedHeader = findBestMatchingHeader(header, oldHeaders);</span><br><span class="line">                        <span class="keyword">if</span> (mappedHeader == <span class="keyword">null</span> || mCurHeader != mappedHeader) &#123;</span><br><span class="line">                            switchToHeader(header);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mCurHeader != <span class="keyword">null</span>) &#123;</span><br><span class="line">                        Header mappedHeader = findBestMatchingHeader(mCurHeader, mHeaders);</span><br><span class="line">                        <span class="keyword">if</span> (mappedHeader != <span class="keyword">null</span>) &#123;</span><br><span class="line">                            setSelectedHeader(mappedHeader);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Deprecated</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addPreferencesFromResource</span><span class="params">(<span class="keyword">int</span> preferencesResId)</span> </span>&#123;</span><br><span class="line">        requirePreferenceManager();</span><br><span class="line"></span><br><span class="line">        setPreferenceScreen(mPreferenceManager.inflateFromResource(<span class="keyword">this</span>, preferencesResId,</span><br><span class="line">                getPreferenceScreen()));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Deprecated</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setPreferenceScreen</span><span class="params">(PreferenceScreen preferenceScreen)</span> </span>&#123;</span><br><span class="line">        requirePreferenceManager();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (mPreferenceManager.setPreferences(preferenceScreen) &amp;&amp; preferenceScreen != <span class="keyword">null</span>) &#123;</span><br><span class="line">            postBindPreferences();</span><br><span class="line">            CharSequence title = getPreferenceScreen().getTitle();</span><br><span class="line">            <span class="comment">// Set the title of the activity</span></span><br><span class="line">            <span class="keyword">if</span> (title != <span class="keyword">null</span>) &#123;</span><br><span class="line">                setTitle(title);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">postBindPreferences</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (mHandler.hasMessages(MSG_BIND_PREFERENCES)) <span class="keyword">return</span>;</span><br><span class="line">        mHandler.obtainMessage(MSG_BIND_PREFERENCES).sendToTarget();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">bindPreferences</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> PreferenceScreen preferenceScreen = getPreferenceScreen();</span><br><span class="line">        <span class="keyword">if</span> (preferenceScreen != <span class="keyword">null</span>) &#123;</span><br><span class="line">            preferenceScreen.bind(getListView());</span><br><span class="line">            <span class="keyword">if</span> (mSavedInstanceState != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">super</span>.onRestoreInstanceState(mSavedInstanceState);</span><br><span class="line">                mSavedInstanceState = <span class="keyword">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> PreferenceScreen <span class="title">inflateFromResource</span><span class="params">(Context context, @XmlRes <span class="keyword">int</span> resId,</span></span></span><br><span class="line"><span class="function"><span class="params">            PreferenceScreen rootPreferences)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// Block commits</span></span><br><span class="line">        setNoCommit(<span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> PreferenceInflater inflater = <span class="keyword">new</span> PreferenceInflater(context, <span class="keyword">this</span>);</span><br><span class="line">        rootPreferences = (PreferenceScreen) inflater.inflate(resId, rootPreferences, <span class="keyword">true</span>);</span><br><span class="line">        rootPreferences.onAttachedToHierarchy(<span class="keyword">this</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Unblock commits</span></span><br><span class="line">        setNoCommit(<span class="keyword">false</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> rootPreferences;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 bind 的过程中会给 ListView 设置对应的 ItemClickListener 和 Adapter，当点击 Preference 中的某一条目时，就会先触发这个 item click 事件。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">PreferenceScreen</span> <span class="keyword">extends</span> <span class="title">PreferenceGroup</span> <span class="keyword">implements</span> <span class="title">AdapterView</span>.<span class="title">OnItemClickListener</span>,</span></span><br><span class="line"><span class="class">        <span class="title">DialogInterface</span>.<span class="title">OnDismissListener</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">bind</span><span class="params">(ListView listView)</span> </span>&#123;</span><br><span class="line">        listView.setOnItemClickListener(<span class="keyword">this</span>);</span><br><span class="line">        listView.setAdapter(getRootAdapter());</span><br><span class="line">        </span><br><span class="line">        onAttachedToActivity();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onItemClick</span><span class="params">(AdapterView parent, View view, <span class="keyword">int</span> position, <span class="keyword">long</span> id)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// If the list has headers, subtract them from the index.</span></span><br><span class="line">        <span class="keyword">if</span> (parent <span class="keyword">instanceof</span> ListView) &#123;</span><br><span class="line">            position -= ((ListView) parent).getHeaderViewsCount();</span><br><span class="line">        &#125;</span><br><span class="line">        Object item = getRootAdapter().getItem(position);</span><br><span class="line">        <span class="keyword">if</span> (!(item <span class="keyword">instanceof</span> Preference)) <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> Preference preference = (Preference) item; </span><br><span class="line">        preference.performClick(<span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当点击事件被触发时会先去执行 Preference 的 performClick 方法，其中会通过 onClick 通知这个 Preference 本身，不同的 Preference 对 onClick 的处理是不一样的，后面会分析我要修改的 CheckBoxPreference 中的 onClick 方法，然后是通知 Preference  的 OnClickListener.onPreferenceClick，再然后通过 onPreferenceTreeClick 通知整个 PreferenceScreen 有东西被点击了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Preference</span> <span class="keyword">implements</span> <span class="title">Comparable</span>&lt;<span class="title">Preference</span>&gt; </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">performClick</span><span class="params">(PreferenceScreen preferenceScreen)</span> </span>&#123;</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> (!isEnabled()) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        onClick();</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> (mOnClickListener != <span class="keyword">null</span> &amp;&amp; mOnClickListener.onPreferenceClick(<span class="keyword">this</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        PreferenceManager preferenceManager = getPreferenceManager();</span><br><span class="line">        <span class="keyword">if</span> (preferenceManager != <span class="keyword">null</span>) &#123;</span><br><span class="line">            PreferenceManager.OnPreferenceTreeClickListener listener = preferenceManager</span><br><span class="line">                    .getOnPreferenceTreeClickListener();</span><br><span class="line">            <span class="keyword">if</span> (preferenceScreen != <span class="keyword">null</span> &amp;&amp; listener != <span class="keyword">null</span></span><br><span class="line">                    &amp;&amp; listener.onPreferenceTreeClick(preferenceScreen, <span class="keyword">this</span>)) &#123;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">if</span> (mIntent != <span class="keyword">null</span>) &#123;</span><br><span class="line">            Context context = getContext();</span><br><span class="line">            context.startActivity(mIntent);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="2-CheckBoxPreference"><a href="#2-CheckBoxPreference" class="headerlink" title="2.CheckBoxPreference"></a>2.CheckBoxPreference</h2><p><a href="https://android.googlesource.com/platform/frameworks/base/+/android-7.1.1_r43/core/java/android/preference/CheckBoxPreference.java" target="_blank" rel="noopener">CheckBoxPreference</a> 本身里面没什么东西，大部分的实现都集中在了 TwoStatePreference 中。前面讲到了 onClick 事件，这里接着继续讲。在 TwoStatePreference 中的 onClick 时间通过 callChangeListener 通知对应的 Listener CheckBox 状态的改变，在 setChecked 的时候将改变的值写入 xml 并且通知 ListView 状态改变。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">TwoStatePreference</span> <span class="keyword">extends</span> <span class="title">Preference</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onClick</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onClick();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">boolean</span> newValue = !isChecked();</span><br><span class="line">        <span class="keyword">if</span> (callChangeListener(newValue)) &#123;</span><br><span class="line">            setChecked(newValue);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setChecked</span><span class="params">(<span class="keyword">boolean</span> checked)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// Always persist/notify the first time; don't assume the field's default of false.</span></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">boolean</span> changed = mChecked != checked;</span><br><span class="line">        <span class="keyword">if</span> (changed || !mCheckedSet) &#123;</span><br><span class="line">            mChecked = checked;</span><br><span class="line">            mCheckedSet = <span class="keyword">true</span>;</span><br><span class="line">            persistBoolean(checked);</span><br><span class="line">            <span class="keyword">if</span> (changed) &#123;</span><br><span class="line">                notifyDependencyChange(shouldDisableDependents());</span><br><span class="line">                notifyChanged();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Preference</span> <span class="keyword">implements</span> <span class="title">Comparable</span>&lt;<span class="title">Preference</span>&gt; </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">persistBoolean</span><span class="params">(<span class="keyword">boolean</span> value)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (shouldPersist()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (value == getPersistedBoolean(!value)) &#123;</span><br><span class="line">                <span class="comment">// It's already there, so the same as persisting</span></span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            SharedPreferences.Editor editor = mPreferenceManager.getEditor();</span><br><span class="line">            editor.putBoolean(mKey, value);</span><br><span class="line">            tryCommit(editor);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看到这里突然想到 CheckBoxPreference 中的 CheckBox 的状态很可能不是自己改变，而是在 notifyChanged 之后刷新 ListView 被动改变的。继续看源码发现其中的 onBindView 里有对 View 的操作，顺着这个方法找到了 Preference 中的 getView 方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">CheckBoxPreference</span> <span class="keyword">extends</span> <span class="title">TwoStatePreference</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onBindView</span><span class="params">(View view)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onBindView(view);</span><br><span class="line"></span><br><span class="line">        View checkboxView = view.findViewById(com.android.internal.R.id.checkbox);</span><br><span class="line">        <span class="keyword">if</span> (checkboxView != <span class="keyword">null</span> &amp;&amp; checkboxView <span class="keyword">instanceof</span> Checkable) &#123;</span><br><span class="line">            ((Checkable) checkboxView).setChecked(mChecked);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        syncSummaryView(view);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Preference</span> <span class="keyword">implements</span> <span class="title">Comparable</span>&lt;<span class="title">Preference</span>&gt; </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">getView</span><span class="params">(View convertView, ViewGroup parent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (convertView == <span class="keyword">null</span>) &#123;</span><br><span class="line">            convertView = onCreateView(parent);</span><br><span class="line">        &#125;</span><br><span class="line">        onBindView(convertView);</span><br><span class="line">        <span class="keyword">return</span> convertView;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个 Adapter 就是前面 bind 方法中 getRootAdapter 所拿到的 Adapter，在 Adapter 的 getView 中找到了 Preference 的 getView。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PreferenceGroupAdapter</span> <span class="keyword">extends</span> <span class="title">BaseAdapter</span></span></span><br><span class="line"><span class="class">        <span class="keyword">implements</span> <span class="title">OnPreferenceChangeInternalListener</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">getView</span><span class="params">(<span class="keyword">int</span> position, View convertView, ViewGroup parent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> Preference preference = <span class="keyword">this</span>.getItem(position);</span><br><span class="line">        <span class="comment">// Build a PreferenceLayout to compare with known ones that are cacheable.</span></span><br><span class="line">        mTempPreferenceLayout = createPreferenceLayout(preference, mTempPreferenceLayout);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// If it's not one of the cached ones, set the convertView to null so that </span></span><br><span class="line">        <span class="comment">// the layout gets re-created by the Preference.</span></span><br><span class="line">        <span class="keyword">if</span> (Collections.binarySearch(mPreferenceLayouts, mTempPreferenceLayout) &lt; <span class="number">0</span> ||</span><br><span class="line">                (getItemViewType(position) == getHighlightItemViewType())) &#123;</span><br><span class="line">            convertView = <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        View result = preference.getView(convertView, parent);  <span class="comment">// !!!</span></span><br><span class="line">        <span class="keyword">if</span> (position == mHighlightedPosition &amp;&amp; mHighlightedDrawable != <span class="keyword">null</span>) &#123;</span><br><span class="line">            ViewGroup wrapper = <span class="keyword">new</span> FrameLayout(parent.getContext());</span><br><span class="line">            wrapper.setLayoutParams(sWrapperLayoutParams);</span><br><span class="line">            wrapper.setBackgroundDrawable(mHighlightedDrawable);</span><br><span class="line">            wrapper.addView(result);</span><br><span class="line">            result = wrapper;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看到这里印证了之前的猜想，CheckBox 确实没有自己独立的点击事件，是依靠 check 属性的变化刷新 ListView 做出的反馈。知道原理了就好说了，之所以没法分开就是因为CheckBox 没有单独的点击事件嘛。</p>
+<h2 id="3-定制"><a href="#3-定制" class="headerlink" title="3.定制"></a>3.定制</h2><p>通过源码可以知道系统自带的 CheckBox 的 id 是 android.R.id.checkbox，然后只要给 CheckBox 和容器分别加上对应的点击事件就好啦，有一个要注意的点就是还需要手动去出发父类的 onClick，否则属性的持久化是不会被触发的，当然也可以自己做这个动作。在注释掉的地方可以自定义不同的 CheckBox，比如有的 CheckBox 的 state layer/list 是定义的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">CustomCheckBoxPreference</span> <span class="keyword">extends</span> <span class="title">CheckBoxPreference</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">CustomCheckBoxPreference</span><span class="params">(Context context, AttributeSet attrs)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(context, attrs);</span><br><span class="line"><span class="comment">//        setWidgetLayoutResource(R.layout.widget_checkbox);</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onBindView</span><span class="params">(View view)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onBindView(view);</span><br><span class="line">        CheckBox checkBox = (CheckBox) view.findViewById(android.R.id.checkbox);</span><br><span class="line">        checkBox.setChecked(isChecked());</span><br><span class="line">        checkBox.setOnClickListener(<span class="keyword">new</span> View.OnClickListener() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onClick</span><span class="params">(View v)</span> </span>&#123;</span><br><span class="line">                Toast.makeText(getContext(), <span class="string">"check"</span>, Toast.LENGTH_SHORT).show();</span><br><span class="line">                CustomCheckBoxPreference.<span class="keyword">this</span>.onClick();</span><br><span class="line"></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">        view.setOnClickListener(<span class="keyword">new</span> View.OnClickListener() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onClick</span><span class="params">(View v)</span> </span>&#123;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>下面是效果图</p>
+<p><img src="http://7xisp0.com1.z0.glb.clouddn.com/checkbox_custom.gif" alt></p>
+
+      
+    </div>
+    
+    <div>
+      
+        
+      
+    </div>
+
+    <div>
+      
+        
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Android/" rel="tag">#Android</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/20/2017-2017-06-20-世界级的Android测试开发流程-4/" rel="next" title="世界级的Android测试开发流程 4">
+                <i class="fa fa-chevron-left"></i> 世界级的Android测试开发流程 4
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/08/18/2018-掌握-Kotlin-的-Standard-Functions/" rel="prev" title="掌握 Kotlin 的 Standard Functions : run, with, let, also, apply">
+                掌握 Kotlin 的 Standard Functions : run, with, let, also, apply <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image" src="/images/author.jpg" alt="Bill Lv">
+          <p class="site-author-name" itemprop="name">Bill Lv</p>
+          <p class="site-description motion-element" itemprop="description">YESTERDAY YOU SAID TOMORROW</p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">37</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">5</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">10</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+          <div class="feed-link motion-element">
+            <a href="/atom.xml" rel="alternate">
+              <i class="fa fa-rss"></i>
+              RSS
+            </a>
+          </div>
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/lber19535" target="_blank">
+                  
+                    <i class="fa fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.zhihu.com/people/lu-bei-er" target="_blank">
+                  
+                    <i class="fa fa-zhihu"></i>
+                  
+                  Zhihu
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        <div class="links-of-blogroll motion-element">
+          
+        </div>
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-PreferenceActivity"><span class="nav-number">1.</span> <span class="nav-text">1.PreferenceActivity</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-CheckBoxPreference"><span class="nav-number">2.</span> <span class="nav-text">2.CheckBoxPreference</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-定制"><span class="nav-number">3.</span> <span class="nav-text">3.定制</span></a></li></ol></div>
+            
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bill Lv</span>
+</div>
+
+<div class="powered-by">
+  由 <a class="theme-link" href="http://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.0.1"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.0.1"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.0.1"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.0.1"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.0.1"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+  
+  
+  
+
+  
+
+  
+
+</body>
+</html>
