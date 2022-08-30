@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="manifest" href="/manifest.json">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lber19535.github.io","root":"/","images":"/images","scheme":"Mist","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="这篇文章不会专注来讲 JVM 的某个实现的 JIT 技术，而是介绍一些通用的 JIT 技术及优化方式，字节码与 IR 的区别，以及编译器相关的一些知识，主要目的是为了拓宽一下对语言的理解。本文从 Notion 导出，原本有些代码或注释着色的地方无法在 Markdown 中展示。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java 与 JIT">
+<meta property="og:url" content="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/index.html">
+<meta property="og:site_name" content="LOST HOME">
+<meta property="og:description" content="这篇文章不会专注来讲 JVM 的某个实现的 JIT 技术，而是介绍一些通用的 JIT 技术及优化方式，字节码与 IR 的区别，以及编译器相关的一些知识，主要目的是为了拓宽一下对语言的理解。本文从 Notion 导出，原本有些代码或注释着色的地方无法在 Markdown 中展示。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled.png">
+<meta property="og:image" content="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled_1.png">
+<meta property="og:image" content="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled_2.png">
+<meta property="article:published_time" content="2020-12-09T08:04:06.000Z">
+<meta property="article:modified_time" content="2022-08-30T09:51:54.424Z">
+<meta property="article:author" content="Bill Lv">
+<meta property="article:tag" content="‘Android’">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled.png">
+
+
+<link rel="canonical" href="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/","path":"2020/12/09/2022/2022-02-20-Java与JIT/","title":"Java 与 JIT"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java 与 JIT | LOST HOME</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S001LDMM2K"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-S001LDMM2K","only_pageview":false}</script>
+  <script src="/js/third-party/analytics/google-analytics.js"></script>
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">LOST HOME</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">YESTERDAY YOU SAID TOMORROW</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-JVM"><span class="nav-number">1.</span> <span class="nav-text">1. JVM</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-How-it-works"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 How it works</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-Do-what"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 Do what</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3-AOT"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 AOT</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-ByteCode"><span class="nav-number">2.</span> <span class="nav-text">2. ByteCode</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-What"><span class="nav-number">2.1.</span> <span class="nav-text">2.1  What</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-Why-need-bytecode"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Why need bytecode</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-JIT-Compiler"><span class="nav-number">3.</span> <span class="nav-text">3. JIT Compiler</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#3-1-Hotsopt-JIT"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 Hotsopt JIT</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-2-Compile-Optimization"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Compile Optimization</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-Native-Code"><span class="nav-number">4.</span> <span class="nav-text">4. Native Code</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-Too-Much-ASM"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 Too Much ASM</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-NativeStack"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 NativeStack</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-SafePoint"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 SafePoint</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-4-OSR-On-Stack-Replacement"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 OSR(On-Stack Replacement)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-So-What"><span class="nav-number">5.</span> <span class="nav-text">5. So What</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-Reference"><span class="nav-number">6.</span> <span class="nav-text">6. Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bill Lv</p>
+  <div class="site-description" itemprop="description">YESTERDAY YOU SAID TOMORROW</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://lber19535.github.io/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bill Lv">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LOST HOME">
+      <meta itemprop="description" content="YESTERDAY YOU SAID TOMORROW">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java 与 JIT | LOST HOME">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java 与 JIT
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2020-12-09 08:04:06" itemprop="dateCreated datePublished" datetime="2020-12-09T08:04:06+00:00">2020-12-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-08-30 09:51:54" itemprop="dateModified" datetime="2022-08-30T09:51:54+00:00">2022-08-30</time>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span class="firestore-visitors-count"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>这篇文章不会专注来讲 JVM 的某个实现的 JIT 技术，而是介绍一些通用的 JIT 技术及优化方式，字节码与 IR 的区别，以及编译器相关的一些知识，主要目的是为了拓宽一下对语言的理解。本文从 Notion 导出，原本有些代码或注释着色的地方无法在 Markdown 中展示。</p>
+<span id="more"></span>
+
+<h1 id="1-JVM"><a href="#1-JVM" class="headerlink" title="1. JVM"></a>1. JVM</h1><h2 id="1-1-How-it-works"><a href="#1-1-How-it-works" class="headerlink" title="1.1 How it works"></a>1.1 How it works</h2><p>一个大概的流程是 Java 代码通过 javac 编译成 bytecode，在 JVM 中解释运行字节码的同时，收集运行时数据，例如每个方法执行的次数，当执行次数超过一定阈值后，会触发 JIT 编译器讲对应的代码段编译为 native code 运行。当编译为 native code 运行后发现调用次数相比以前没有频繁触发了，有可能会回退到解释执行。整个流程如下图。</p>
+<p><img src="/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled.png" alt="Untitled.png"></p>
+<p>另一个例子是 Python 语言，Python 常见的一个实现是 CPython，会有一个默认的解释器，但是没有JIT，所以一般情况下 Python 都是解释执行。当然 Python 也有一些其他实现带有 JIT 的，例如 PyPy 等，带 JIT 的性能会至少有一倍以上的提升。</p>
+<h2 id="1-2-Do-what"><a href="#1-2-Do-what" class="headerlink" title="1.2 Do what"></a>1.2 Do what</h2><p>在这期间JVM与JIT主要做两个事情，一个是Optimization，一个Inlining，都是为了跑的更快一些。</p>
+<h2 id="1-3-AOT"><a href="#1-3-AOT" class="headerlink" title="1.3 AOT"></a>1.3 AOT</h2><p>先编译成 native code，然后在运行，由于没有运行时 Profiling，所以编译出来 native code 质量不如 JIT 阶段，性能上不如 JIT。</p>
+<h1 id="2-ByteCode"><a href="#2-ByteCode" class="headerlink" title="2. ByteCode"></a>2. ByteCode</h1><p><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Bytecode">Bytecode</a>, also termed portable code or p-code, is a form of instruction set designed for efficient execution by a software interpreter（专门为解释器设计的一种可以高效执行的一种<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Intermediate_representation">IR</a>），所谓 IR 就是一种数据结构或者代码，对编译器或者虚拟机来讲相当于 source code。</p>
+<h2 id="2-1-What"><a href="#2-1-What" class="headerlink" title="2.1  What"></a>2.1  What</h2><p>从一个 Hello World 的例子开始看，先介绍一些字节码指令</p>
+<ul>
+<li>getstatic&#x2F;putstatic: static field access</li>
+<li>ldc:  load constant value on stack</li>
+<li>invokevirtual: call a concrete instance method</li>
+<li>return: return from void method</li>
+</ul>
+<p>下面是 Kotlin 的例子</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    println(<span class="string">&quot;hello world&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下面是编译后的字节码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">static</span> <span class="title function_">main</span><span class="params">()</span>V</span><br><span class="line">   L0</span><br><span class="line">    LINENUMBER <span class="number">2</span> L0</span><br><span class="line">    LDC <span class="string">&quot;hello world&quot;</span>    <span class="comment">// 加载字符串 </span></span><br><span class="line">    ASTORE <span class="number">0</span></span><br><span class="line">   L1</span><br><span class="line">    ICONST_0</span><br><span class="line">    ISTORE <span class="number">1</span></span><br><span class="line">   L2</span><br><span class="line">		<span class="comment">// 获取类型为 PrintStream 的 out static field</span></span><br><span class="line">    GETSTATIC java/lang/System.out : Ljava/io/PrintStream;</span><br><span class="line">    ALOAD <span class="number">0</span></span><br><span class="line">    <span class="comment">// 调用 println 方法</span></span><br><span class="line">    INVOKEVIRTUAL java/io/PrintStream.println (Ljava/lang/Object;)V</span><br><span class="line">   L3</span><br><span class="line">   L4</span><br><span class="line">    LINENUMBER <span class="number">3</span> L4</span><br><span class="line">    RETURN</span><br><span class="line">   <span class="type">L5</span></span><br><span class="line">    <span class="variable">MAXSTACK</span> <span class="operator">=</span> <span class="number">2</span></span><br><span class="line">    MAXLOCALS = <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-2-Why-need-bytecode"><a href="#2-2-Why-need-bytecode" class="headerlink" title="2.2 Why need bytecode"></a>2.2 Why need bytecode</h2><ul>
+<li>屏蔽平台差异（32&#x2F;64位，int 范围，线程实现等）</li>
+<li>bytecode作为一种 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Intermediate_representation">IR</a> 对编译器和虚拟机友好</li>
+</ul>
+<h1 id="3-JIT-Compiler"><a href="#3-JIT-Compiler" class="headerlink" title="3. JIT Compiler"></a>3. JIT Compiler</h1><p>这一步需要加一些 vm 的参数，打开 JIT 相关的 log</p>
+<ul>
+<li>-Xbatch<ul>
+<li>turn off parallel compilation in background</li>
+</ul>
+</li>
+<li>XX:-TieredCompilation<ul>
+<li>disable tieredCompilation avoid some nising</li>
+</ul>
+</li>
+<li>-XX:+PrintCompilation<ul>
+<li>display method as they compile</li>
+</ul>
+</li>
+<li>-XX:+PrintInlining(XX:+UnlockDiagnosticVMOptions)<ul>
+<li>display inline method as nested</li>
+</ul>
+</li>
+</ul>
+<h2 id="3-1-Hotsopt-JIT"><a href="#3-1-Hotsopt-JIT" class="headerlink" title="3.1 Hotsopt JIT"></a>3.1 Hotsopt JIT</h2><ul>
+<li>code is interpreted first</li>
+<li>after some threshold, JIT fires<ul>
+<li>numbers of calls</li>
+<li>loop for certain time</li>
+</ul>
+</li>
+<li>older hotsopt went straight  to “client” to “server”<ul>
+<li>client do some short test and produce pretty good native code not very optimized but quickly</li>
+<li>server gather more information produce much more better native code</li>
+</ul>
+</li>
+<li>tiered compiler goes to “client + profiling” and later server<ul>
+<li>in this test, we will disable tiered compilation avoid some noising</li>
+</ul>
+</li>
+</ul>
+<p>JIT 的过程分四步，第一步是先解释执行字节码，第二步某些方法执行次数经过一定阈值后 JIT 会介入。旧的虚拟机会有 client 和 server 的区别，client 负责轻度的编译优化速度快，server 会在运行时搜集相关的信息，做一些耗时比较久的编译优化。如下图所示，Server VM 就是前面所说的 server，最后的 mixed mode 表示 JIT 是 interpreted + compile 的混合模式。</p>
+<p><img src="/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled_1.png" alt="Untitled%201.png"></p>
+<p>当然也可以通过参数将调整 JIT 模式，如下，分别是强制使用编译模式和只解释执行模式</p>
+<p><img src="/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/Untitled_2.png" alt="Untitled%202.png"></p>
+<p>现在的分层编译在原来单一的 client+server 模式上做了更详细划分，C1 就是一个 Client，C2 则是 Server，JVM 中的分层编译具体可以参考 <a target="_blank" rel="noopener" href="http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/2b2511bd3cc8/src/share/vm/runtime/advancedThresholdPolicy.hpp#l34">advancedThresholdPolicy</a> 中的注释，这里摘抄一小部分注释稍微解释一下分层编译：</p>
+<ul>
+<li>level 0 - interpreter</li>
+<li>level 1 - C1 with full optimization (no profiling)</li>
+<li>level 2 - C1 with invocation and backedge counters</li>
+<li>level 3 - C1 with full profiling (level 2 + MDO)</li>
+<li>level 4 - C2</li>
+</ul>
+<h2 id="3-2-Compile-Optimization"><a href="#3-2-Compile-Optimization" class="headerlink" title="3.2 Compile Optimization"></a>3.2 Compile Optimization</h2><ul>
+<li><strong><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Inline_expansion">Inline expansion</a></strong></li>
+</ul>
+<p>最常见的一种编译期优化</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">a</span><span class="params">(x:<span class="type">Int</span>)</span></span>:<span class="built_in">Int</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">if</span>(x == <span class="number">0</span>) x <span class="keyword">else</span> x - <span class="number">1</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// before</span></span><br><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">test</span><span class="params">(x1: <span class="type">Int</span>, x2: <span class="type">Int</span>, x3: <span class="type">Int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">val</span> s = a(x1) + a(x2) + a(x3)</span><br><span class="line">	println(s)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// after</span></span><br><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">test</span><span class="params">(x1: <span class="type">Int</span>, x2: <span class="type">Int</span>, x3: <span class="type">Int</span>)</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> var10000 = <span class="keyword">if</span> (x1 == <span class="number">0</span>) x1 <span class="keyword">else</span> x1 - <span class="number">1</span></span><br><span class="line">    var10000 += <span class="keyword">if</span> (x2 == <span class="number">0</span>) x2 <span class="keyword">else</span> x2 - <span class="number">1</span></span><br><span class="line">    <span class="keyword">val</span> s = var10000 + <span class="keyword">if</span> (x3 == <span class="number">0</span>) x3 <span class="keyword">else</span> x3 - <span class="number">1</span></span><br><span class="line">    println(s)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><strong>Data-flow optimizations</strong></p>
+</li>
+<li><p><strong><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Static_single_assignment_form">SSA-based optimizations</a></strong></p>
+</li>
+</ul>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// before</span></span><br><span class="line"><span class="keyword">var</span> y = <span class="number">1</span></span><br><span class="line">y = <span class="number">2</span></span><br><span class="line"><span class="keyword">val</span> x = y</span><br><span class="line">println(x)</span><br><span class="line"></span><br><span class="line"><span class="comment">// after</span></span><br><span class="line"><span class="keyword">val</span> y1 = <span class="number">1</span></span><br><span class="line"><span class="keyword">val</span> y2 = <span class="number">2</span></span><br><span class="line"><span class="keyword">val</span> x1 = y2</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Tail_call">Tail call</a></strong></li>
+</ul>
+<p>从 Java 9 开始引入了新的 Graal 编译器代替旧的 C2，旧的几乎由 C++ 编写，维护难度和历史问题都没办法解决，新的则由 Java 编写，实际上 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/GraalVM">Graal</a> 是一个由 Java 编写的虚拟机。</p>
+<p><strong>需要说明的是所有的 profiling + compilation 工作都是在异步线程执行的</strong></p>
+<p>下面看一个具体的例子<strong>Sample:</strong></p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">0.</span><span class="number">.100000</span>) &#123;</span><br><span class="line">        hello()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">fun</span> <span class="title">hello</span><span class="params">()</span></span> &#123;</span><br><span class="line">    print(<span class="string">&quot;&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Desc</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A1 column</td>
+<td>since start time</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L412">sources</a></td>
+</tr>
+<tr>
+<td>B1 column</td>
+<td>compilation number</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L412">sources</a></td>
+</tr>
+<tr>
+<td>C1 column</td>
+<td>class name method name byte code size</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L412">sources</a></td>
+</tr>
+<tr>
+<td>b</td>
+<td>Blocking compiler (always set for client)</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L435">sources</a></td>
+</tr>
+<tr>
+<td>*</td>
+<td>Generating a native wrapper</td>
+<td></td>
+</tr>
+<tr>
+<td>%</td>
+<td>On stack replacement (where the compiled code is running)</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L432">sources</a></td>
+</tr>
+<tr>
+<td>!</td>
+<td>Method has exception handlers(try catch)</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L434">sources</a></td>
+</tr>
+<tr>
+<td>s</td>
+<td>Method declared as synchronized</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L433">sources</a></td>
+</tr>
+<tr>
+<td>n</td>
+<td>Method declared as native</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L436">sources</a></td>
+</tr>
+<tr>
+<td>m</td>
+<td>monitors(synchronized)</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/JetBrains/jdk8u_hotspot/blob/master/src/share/vm/compiler/compileBroker.cpp#L480">sources</a></td>
+</tr>
+<tr>
+<td>made not entrant</td>
+<td>compilation was wrong&#x2F;incomplete no future callers will use this version</td>
+<td></td>
+</tr>
+<tr>
+<td>made zombie</td>
+<td>code is not in use and ready for GC</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>下面是 JIT 的 log， A1 这列表示 JIT 执行的时间，起点是 JVM 启动开始计算，B1 这列表示编译的 index，代表这个方法是第几个被编译的， C1 这列是被编译的方法。中间的注释表示中间经过了几次println</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"> A1  B1                         C1 </span><br><span class="line"><span class="number">94</span>    <span class="number">1</span>    b        java.lang.String::equals (<span class="number">81</span> bytes)</span><br><span class="line"><span class="number">94</span>    <span class="number">2</span>    b        java.lang.String::hashCode (<span class="number">55</span> bytes)</span><br><span class="line"><span class="number">96</span>    <span class="number">3</span>    b        java.lang.String::indexOf (<span class="number">70</span> bytes)</span><br><span class="line"><span class="number">98</span>    <span class="number">4</span>    b        sun.nio.cs.UTF_8$Encoder::encode (<span class="number">359</span> bytes)</span><br><span class="line"><span class="comment">// 412</span></span><br><span class="line"><span class="number">106</span>    <span class="number">5</span>    b       java.util.Properties$LineReader::readLine (<span class="number">468</span> bytes)</span><br><span class="line"><span class="comment">// 816</span></span><br><span class="line"><span class="number">118</span>    <span class="number">6</span>    b        java.nio.Buffer::position (<span class="number">5</span> bytes)</span><br><span class="line"><span class="comment">// 5</span></span><br><span class="line"><span class="number">118</span>    <span class="number">7</span>    b        java.nio.ByteBuffer::arrayOffset (<span class="number">35</span> bytes)</span><br><span class="line"><span class="comment">// 89</span></span><br><span class="line"><span class="number">118</span>    <span class="number">8</span>    b        sun.nio.cs.UTF_8$Encoder::encodeArrayLoop (<span class="number">489</span> bytes)</span><br><span class="line"><span class="comment">// 391</span></span><br><span class="line"><span class="number">127</span>    <span class="number">9</span>    b        java.nio.Buffer::position (<span class="number">43</span> bytes)</span><br><span class="line"><span class="comment">// 27</span></span><br><span class="line"><span class="number">127</span>   <span class="number">10</span>    n       java.lang.System::arraycopy (native)   (static)</span><br><span class="line"><span class="comment">// 207</span></span><br><span class="line"><span class="number">130</span>   <span class="number">11</span>    b        java.lang.Object::&lt;<span class="keyword">init</span>&gt; (<span class="number">1</span> bytes)</span><br><span class="line"><span class="comment">// 566</span></span><br><span class="line"><span class="number">135</span>   <span class="number">12</span>    b        java.nio.Buffer::limit (<span class="number">5</span> bytes)</span><br><span class="line"><span class="comment">// 40</span></span><br><span class="line"><span class="number">136</span>   <span class="number">13</span>    b        java.nio.charset.CoderResult::isUnderflow (<span class="number">13</span> bytes)</span><br><span class="line"><span class="comment">// 19</span></span><br><span class="line"><span class="number">136</span>   <span class="number">14</span>    b        java.io.BufferedWriter::ensureOpen (<span class="number">18</span> bytes)</span><br><span class="line"><span class="number">136</span>   <span class="number">15</span>    b        java.io.PrintStream::ensureOpen (<span class="number">18</span> bytes)</span><br><span class="line"><span class="number">137</span>   <span class="number">16</span>   !b        java.io.BufferedWriter::write (<span class="number">117</span> bytes)</span><br><span class="line"><span class="comment">// 833</span></span><br><span class="line"><span class="number">147</span>   <span class="number">17</span>  s b        java.io.BufferedOutputStream::flush (<span class="number">12</span> bytes)</span><br><span class="line"><span class="number">149</span>   <span class="number">18</span>    b        java.io.BufferedOutputStream::flushBuffer (<span class="number">29</span> bytes)</span><br><span class="line"><span class="number">149</span>   <span class="number">19</span>    b        java.io.OutputStream::flush (<span class="number">1</span> bytes)</span><br><span class="line"><span class="comment">// 306</span></span><br><span class="line"><span class="number">152</span>   <span class="number">20</span>    b        java.lang.String::length (<span class="number">6</span> bytes)</span><br><span class="line"><span class="comment">// 85</span></span><br><span class="line"><span class="number">152</span>   <span class="number">21</span>    b        java.nio.ByteBuffer::array (<span class="number">35</span> bytes)</span><br><span class="line"><span class="comment">// 1240</span></span><br><span class="line"><span class="number">163</span>   <span class="number">22</span>    b        java.nio.Buffer::limit (<span class="number">62</span> bytes)</span><br><span class="line"><span class="comment">// 5</span></span><br><span class="line"><span class="number">163</span>   <span class="number">23</span>    b        java.nio.Buffer::flip (<span class="number">20</span> bytes)</span><br><span class="line"><span class="number">164</span>   <span class="number">24</span>    b        java.nio.Buffer::&lt;<span class="keyword">init</span>&gt; (<span class="number">121</span> bytes)</span><br><span class="line"><span class="comment">// 8</span></span><br><span class="line"><span class="number">164</span>   <span class="number">25</span>    b        java.nio.Buffer::clear (<span class="number">20</span> bytes)</span><br><span class="line"><span class="number">165</span>   <span class="number">26</span>    b        java.nio.Buffer::hasRemaining (<span class="number">17</span> bytes)</span><br><span class="line"><span class="comment">// 3</span></span><br><span class="line"><span class="number">165</span>   <span class="number">27</span>    b        java.nio.CharBuffer::hasArray (<span class="number">20</span> bytes)</span><br><span class="line"><span class="number">165</span>   <span class="number">28</span>    b        java.nio.ByteBuffer::hasArray (<span class="number">20</span> bytes)</span><br><span class="line"><span class="number">166</span>   <span class="number">29</span>    b        java.nio.charset.CoderResult::isOverflow (<span class="number">14</span> bytes)</span><br><span class="line"><span class="comment">// 5</span></span><br><span class="line"><span class="number">166</span>   <span class="number">30</span>    b        java.nio.Buffer::remaining (<span class="number">10</span> bytes)</span><br><span class="line"><span class="number">166</span>   <span class="number">31</span>    b        java.nio.CharBuffer::&lt;<span class="keyword">init</span>&gt; (<span class="number">22</span> bytes)</span><br><span class="line"><span class="comment">// 7</span></span><br><span class="line"><span class="number">167</span>   <span class="number">32</span>   !b        java.nio.CharBuffer::wrap (<span class="number">20</span> bytes)</span><br><span class="line"><span class="number">168</span>   <span class="number">33</span>    b        java.nio.HeapCharBuffer::&lt;<span class="keyword">init</span>&gt; (<span class="number">14</span> bytes)</span><br><span class="line"><span class="comment">// 5</span></span><br><span class="line"><span class="number">169</span>   <span class="number">34</span>     n       java.io.FileOutputStream::writeBytes (native)   </span><br><span class="line"><span class="number">169</span>   <span class="number">35</span>    b        java.io.Writer::write (<span class="number">11</span> bytes)</span><br><span class="line"><span class="number">170</span>   <span class="number">36</span>   !b        java.io.BufferedWriter::flushBuffer (<span class="number">53</span> bytes)</span><br><span class="line"><span class="number">177</span>   <span class="number">37</span>    b        java.io.OutputStreamWriter::write (<span class="number">11</span> bytes)</span><br><span class="line"><span class="number">181</span>   <span class="number">38</span>   !b        sun.nio.cs.StreamEncoder::write (<span class="number">78</span> bytes)</span><br><span class="line"><span class="number">187</span>   <span class="number">39</span>    b        sun.nio.cs.StreamEncoder::ensureOpen (<span class="number">18</span> bytes)</span><br><span class="line"><span class="number">187</span>   <span class="number">40</span>    b        sun.nio.cs.StreamEncoder::implWrite (<span class="number">156</span> bytes)</span><br><span class="line"><span class="number">191</span>   <span class="number">41</span>   !b        java.nio.charset.CharsetEncoder::encode (<span class="number">285</span> bytes)</span><br><span class="line"><span class="number">192</span>   <span class="number">42</span>    b        sun.nio.cs.UTF_8$Encoder::encodeLoop (<span class="number">28</span> bytes)</span><br><span class="line"><span class="number">193</span>   <span class="number">43</span>    b        java.io.OutputStreamWriter::flushBuffer (<span class="number">8</span> bytes)</span><br><span class="line"><span class="number">200</span>   <span class="number">44</span>   !b        sun.nio.cs.StreamEncoder::flushBuffer (<span class="number">42</span> bytes)</span><br><span class="line"><span class="number">207</span>   <span class="number">45</span>    b        sun.nio.cs.StreamEncoder::isOpen (<span class="number">5</span> bytes)</span><br><span class="line"><span class="number">207</span>   <span class="number">46</span>    b        sun.nio.cs.StreamEncoder::implFlushBuffer (<span class="number">15</span> bytes)</span><br><span class="line"><span class="number">212</span>   <span class="number">47</span>    b        sun.nio.cs.StreamEncoder::writeBytes (<span class="number">132</span> bytes)</span><br><span class="line"><span class="number">219</span>   <span class="number">48</span>   !b        java.io.PrintStream::write (<span class="number">69</span> bytes)</span><br><span class="line"><span class="number">223</span>   <span class="number">49</span>  s b        java.io.BufferedOutputStream::write (<span class="number">67</span> bytes)</span><br><span class="line"><span class="comment">// 4188</span></span><br><span class="line"><span class="number">237</span>   <span class="number">50</span>    b        java.lang.String::indexOf (<span class="number">7</span> bytes)</span><br><span class="line"><span class="comment">// 766</span></span><br><span class="line"><span class="number">240</span>   <span class="number">51</span>    b        java.lang.String::valueOf (<span class="number">14</span> bytes)</span><br><span class="line"><span class="comment">// 45</span></span><br><span class="line"><span class="number">241</span>   <span class="number">52</span>    b        TestKt::hello (<span class="number">13</span> bytes)</span><br><span class="line"><span class="number">247</span>   <span class="number">53</span>   !b        java.io.PrintStream::println (<span class="number">31</span> bytes)</span><br><span class="line"><span class="number">255</span>   <span class="number">54</span>    b        java.io.PrintStream::print (<span class="number">13</span> bytes)</span><br><span class="line"><span class="number">258</span>   <span class="number">55</span>   !b        java.io.PrintStream::write (<span class="number">83</span> bytes)</span><br><span class="line"><span class="number">262</span>   <span class="number">56</span>   !b        java.io.PrintStream::newLine (<span class="number">73</span> bytes)</span><br><span class="line"><span class="number">265</span>   <span class="number">57</span>    b        java.io.BufferedWriter::newLine (<span class="number">9</span> bytes)</span><br><span class="line"><span class="comment">// 4563</span></span><br><span class="line"><span class="number">275</span>   <span class="number">58</span> %  b        TestKt::main @ <span class="number">5</span> (<span class="number">20</span> bytes)</span><br><span class="line"><span class="comment">// 85438</span></span><br><span class="line"><span class="number">457</span>   <span class="number">58</span> %           TestKt::main @ -<span class="number">2</span> (<span class="number">20</span> bytes)   made not entrant</span><br></pre></td></tr></table></figure>
+
+<p><strong>With Inline Compilation</strong></p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br></pre></td><td class="code"><pre><span class="line"> A1    B1                         C1 </span><br><span class="line"><span class="number">108</span>    <span class="number">1</span>    b        java.lang.String::equals (<span class="number">81</span> bytes)</span><br><span class="line"><span class="number">108</span>    <span class="number">2</span>    b        java.lang.String::hashCode (<span class="number">55</span> bytes)</span><br><span class="line"><span class="number">109</span>    <span class="number">3</span>    b        java.lang.String::indexOf (<span class="number">70</span> bytes)</span><br><span class="line"><span class="number">111</span>    <span class="number">4</span>    b        sun.nio.cs.UTF_8$Encoder::encode (<span class="number">359</span> bytes)</span><br><span class="line">                        @ <span class="number">14</span>   java.lang.Math::min (<span class="number">11</span> bytes)   (intrinsic)</span><br><span class="line">**<span class="comment">// 405 println**</span></span><br><span class="line"><span class="number">118</span>    <span class="number">5</span>    b        java.util.Properties$LineReader::readLine (<span class="number">468</span> bytes)</span><br><span class="line">**<span class="comment">// 187 println**</span></span><br><span class="line">                        @ <span class="number">48</span>   java.io.Reader::read (<span class="number">9</span> bytes)   never executed</span><br><span class="line">                        @ <span class="number">62</span>   java.io.FilterInputStream::read (<span class="number">9</span> bytes)   executed &lt; MinInliningThreshold times</span><br><span class="line">                         \-&gt; TypeProfile (<span class="number">5</span>/<span class="number">5</span> counts) = java/io/BufferedInputStream</span><br><span class="line">                        @ <span class="number">311</span>   java.lang.System::arraycopy (<span class="number">0</span> bytes)   (intrinsic)</span><br><span class="line">**<span class="comment">// 637 println**</span></span><br><span class="line"><span class="number">128</span>    <span class="number">6</span>    b        java.nio.Buffer::position (<span class="number">5</span> bytes)</span><br><span class="line">**<span class="comment">// 6 println**</span></span><br><span class="line"><span class="number">129</span>    <span class="number">7</span>    b        java.nio.ByteBuffer::arrayOffset (<span class="number">35</span> bytes)</span><br><span class="line">**<span class="comment">// 15 println**</span></span><br><span class="line"><span class="number">129</span>    <span class="number">8</span>    b        sun.nio.cs.UTF_8$Encoder::encodeArrayLoop (<span class="number">489</span> bytes)</span><br><span class="line">                        @ <span class="number">1</span>   java.nio.CharBuffer::array (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">6</span>   java.nio.CharBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">10</span>   java.nio.Buffer::position (<span class="number">5</span> bytes)   accessor</span><br><span class="line">                        @ <span class="number">17</span>   java.nio.CharBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">21</span>   java.nio.Buffer::limit (<span class="number">5</span> bytes)   accessor</span><br><span class="line">                        @ <span class="number">28</span>   java.nio.ByteBuffer::array (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">34</span>   java.nio.ByteBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">38</span>   java.nio.Buffer::position (<span class="number">5</span> bytes)   accessor</span><br><span class="line">                        @ <span class="number">45</span>   java.nio.ByteBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">49</span>   java.nio.Buffer::limit (<span class="number">5</span> bytes)   accessor</span><br><span class="line">                        @ <span class="number">67</span>   java.lang.Math::min (<span class="number">11</span> bytes)   (intrinsic)</span><br><span class="line">                        @ <span class="number">482</span>   sun.nio.cs.UTF_8::access$<span class="number">200</span> (<span class="number">8</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">4</span>   sun.nio.cs.UTF_8::updatePositions (<span class="number">23</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">3</span>   java.nio.CharBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">7</span>   java.nio.Buffer::position (<span class="number">43</span> bytes)   too big</span><br><span class="line">                            @ <span class="number">14</span>   java.nio.ByteBuffer::arrayOffset (<span class="number">35</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">18</span>   java.nio.Buffer::position (<span class="number">43</span> bytes)   too big</span><br><span class="line">**<span class="comment">// 391 println**</span></span><br><span class="line"><span class="number">137</span>    <span class="number">9</span>    b        java.nio.Buffer::position (<span class="number">43</span> bytes)</span><br><span class="line">**<span class="comment">// 28 println**</span></span><br><span class="line"><span class="number">137</span>   <span class="number">10</span>     n       java.lang.System::arraycopy (native)   (static)</span><br><span class="line">**<span class="comment">// 207 println**</span></span><br><span class="line"><span class="number">139</span>   <span class="number">11</span>    b        java.lang.Object::&lt;<span class="keyword">init</span>&gt; (<span class="number">1</span> bytes)</span><br><span class="line">**<span class="comment">// 565 println**</span></span><br><span class="line"><span class="number">145</span>   <span class="number">12</span>    b        java.nio.Buffer::limit (<span class="number">5</span> bytes)</span><br><span class="line">**<span class="comment">// 40 println**</span></span><br><span class="line"><span class="number">145</span>   <span class="number">13</span>    b        java.nio.charset.CoderResult::isUnderflow (<span class="number">13</span> bytes)</span><br><span class="line">**<span class="comment">// 19**</span></span><br><span class="line"><span class="number">146</span>   <span class="number">14</span>    b        java.io.BufferedWriter::ensureOpen (<span class="number">18</span> bytes)</span><br><span class="line"><span class="number">146</span>   <span class="number">15</span>    b        java.io.PrintStream::ensureOpen (<span class="number">18</span> bytes)</span><br><span class="line"><span class="number">146</span>   <span class="number">16</span>   !b        java.io.BufferedWriter::write (<span class="number">117</span> bytes)</span><br><span class="line">                        @ <span class="number">9</span>   java.io.BufferedWriter::ensureOpen (<span class="number">18</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">42</span>   java.io.BufferedWriter::min (<span class="number">9</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                        @ <span class="number">63</span>   java.lang.String::getChars (<span class="number">62</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">58</span>   java.lang.System::arraycopy (<span class="number">0</span> bytes)   (intrinsic)</span><br><span class="line">**<span class="comment">// 833**</span></span><br><span class="line"><span class="number">156</span>   <span class="number">17</span>  s b        java.io.BufferedOutputStream::flush (<span class="number">12</span> bytes)</span><br><span class="line">                        @ <span class="number">1</span>   java.io.BufferedOutputStream::flushBuffer (<span class="number">29</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">20</span>   java.io.FileOutputStream::write (<span class="number">12</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                           \-&gt; TypeProfile (<span class="number">4466</span>/<span class="number">4466</span> counts) = java/io/FileOutputStream</span><br><span class="line">                            @ <span class="number">8</span>   java.io.FileOutputStream::writeBytes (<span class="number">0</span> bytes)   native method</span><br><span class="line">                        @ <span class="number">8</span>   java.io.OutputStream::flush (<span class="number">1</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                         \-&gt; TypeProfile (<span class="number">6700</span>/<span class="number">6700</span> counts) = java/io/FileOutputStream</span><br><span class="line"><span class="number">157</span>   <span class="number">18</span>    b        java.io.BufferedOutputStream::flushBuffer (<span class="number">29</span> bytes)</span><br><span class="line">                        @ <span class="number">20</span>   java.io.FileOutputStream::write (<span class="number">12</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                         \-&gt; TypeProfile (<span class="number">4466</span>/<span class="number">4466</span> counts) = java/io/FileOutputStream</span><br><span class="line">                          @ <span class="number">8</span>   java.io.FileOutputStream::writeBytes (<span class="number">0</span> bytes)   native method</span><br><span class="line">**<span class="comment">// 1**</span></span><br><span class="line"><span class="number">158</span>   <span class="number">19</span>    b        java.io.OutputStream::flush (<span class="number">1</span> bytes)</span><br><span class="line">**<span class="comment">// 306**</span></span><br><span class="line"><span class="number">160</span>   <span class="number">20</span>    b        java.lang.String::length (<span class="number">6</span> bytes)</span><br><span class="line">**<span class="comment">// 85**</span></span><br><span class="line"><span class="number">161</span>   <span class="number">21</span>    b        java.nio.ByteBuffer::array (<span class="number">35</span> bytes)</span><br><span class="line">**<span class="comment">// 1240**</span></span><br><span class="line"><span class="number">170</span>   <span class="number">22</span>    b        java.nio.Buffer::limit (<span class="number">62</span> bytes)</span><br><span class="line">...</span><br><span class="line">**<span class="comment">// 4190**</span></span><br><span class="line"><span class="number">242</span>   <span class="number">50</span>    b        java.lang.String::indexOf (<span class="number">7</span> bytes)</span><br><span class="line">                        @ <span class="number">3</span>   java.lang.String::indexOf (<span class="number">70</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">**<span class="comment">// 764**</span></span><br><span class="line"><span class="number">245</span>   <span class="number">51</span>    b        java.lang.String::valueOf (<span class="number">14</span> bytes)</span><br><span class="line">                        @ <span class="number">10</span>   java.lang.String::toString (<span class="number">2</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                         \-&gt; TypeProfile (<span class="number">6700</span>/<span class="number">6700</span> counts) = java/lang/String</span><br><span class="line">**<span class="comment">// 45**</span></span><br><span class="line"><span class="number">246</span>   <span class="number">52</span>    b        TestKt::hello (<span class="number">13</span> bytes)</span><br><span class="line">           !m           @ <span class="number">9</span>   java.io.PrintStream::println (<span class="number">31</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">1</span>   java.lang.String::valueOf (<span class="number">14</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">10</span>   java.lang.String::toString (<span class="number">2</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">11</span>   java.io.PrintStream::print (<span class="number">13</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">           !m               @ <span class="number">9</span>   java.io.PrintStream::write (<span class="number">83</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                              @ <span class="number">5</span>   java.io.PrintStream::ensureOpen (<span class="number">18</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                              @ <span class="number">13</span>   java.io.Writer::write (<span class="number">11</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                                @ <span class="number">4</span>   java.lang.String::length (<span class="number">6</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">           !m                   @ <span class="number">7</span>   java.io.BufferedWriter::write (<span class="number">117</span> bytes)   already compiled into a big method</span><br><span class="line">           !m                 @ <span class="number">20</span>   java.io.BufferedWriter::flushBuffer (<span class="number">53</span> bytes)   already compiled into a big method</span><br><span class="line">                              @ <span class="number">27</span>   java.io.OutputStreamWriter::flushBuffer (<span class="number">8</span> bytes)   already compiled into a big method</span><br><span class="line">                              @ <span class="number">40</span>   java.lang.String::indexOf (<span class="number">7</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                                @ <span class="number">3</span>   java.lang.String::indexOf (<span class="number">70</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">           !m             @ <span class="number">15</span>   java.io.PrintStream::newLine (<span class="number">73</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">5</span>   java.io.PrintStream::ensureOpen (<span class="number">18</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                            @ <span class="number">12</span>   java.io.BufferedWriter::newLine (<span class="number">9</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                              @ <span class="number">5</span>   java.io.Writer::write (<span class="number">11</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                                @ <span class="number">4</span>   java.lang.String::length (<span class="number">6</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">           !m                   @ <span class="number">7</span>   java.io.BufferedWriter::write (<span class="number">117</span> bytes)   already compiled into a big method</span><br><span class="line">           !m               @ <span class="number">19</span>   java.io.BufferedWriter::flushBuffer (<span class="number">53</span> bytes)   already compiled into a big method</span><br><span class="line">                            @ <span class="number">26</span>   java.io.OutputStreamWriter::flushBuffer (<span class="number">8</span> bytes)   already compiled into a big method</span><br><span class="line">          s                 @ <span class="number">40</span>   java.io.BufferedOutputStream::flush (<span class="number">12</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                             \-&gt; TypeProfile (<span class="number">6700</span>/<span class="number">6700</span> counts) = java/io/BufferedOutputStream</span><br><span class="line">                              @ <span class="number">1</span>   java.io.BufferedOutputStream::flushBuffer (<span class="number">29</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                                @ <span class="number">20</span>   java.io.FileOutputStream::write (<span class="number">12</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                                 \-&gt; TypeProfile (<span class="number">4467</span>/<span class="number">4467</span> counts) = java/io/FileOutputStream</span><br><span class="line">                                  @ <span class="number">8</span>   java.io.FileOutputStream::writeBytes (<span class="number">0</span> bytes)   native method</span><br><span class="line">                              @ <span class="number">8</span>   java.io.OutputStream::flush (<span class="number">1</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                               \-&gt; TypeProfile (<span class="number">6701</span>/<span class="number">6701</span> counts) = java/io/FileOutputStream</span><br><span class="line">...</span><br><span class="line"><span class="number">269</span>   <span class="number">57</span>    b        java.io.BufferedWriter::newLine (<span class="number">9</span> bytes)</span><br><span class="line">                        @ <span class="number">5</span>   java.io.Writer::write (<span class="number">11</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">                          @ <span class="number">4</span>   java.lang.String::length (<span class="number">6</span> bytes)   <span class="keyword">inline</span> (hot)</span><br><span class="line">           !m             @ <span class="number">7</span>   java.io.BufferedWriter::write (<span class="number">117</span> bytes)   already compiled into a big method</span><br><span class="line">**<span class="comment">// 4563**</span></span><br><span class="line"><span class="number">279</span>   <span class="number">58</span> %  b        TestKt::main @ <span class="number">5</span> (<span class="number">20</span> bytes)</span><br><span class="line">                        @ <span class="number">10</span>   TestKt::hello (<span class="number">13</span> bytes)   already compiled into a big method</span><br><span class="line">**<span class="comment">// 85438**</span></span><br><span class="line"><span class="number">493</span>   <span class="number">58</span> %           TestKt::main @ -<span class="number">2</span> (<span class="number">20</span> bytes)   made not entrant</span><br></pre></td></tr></table></figure>
+
+<p>可以看 246 对应的这一行，这里 hello 方法下的调用均已被 inline 优化， 279 这里表示 hello 这个方法已经被编译到一个 big method 里了。注释里的数字表示中间打印了多少个println，可以看出在经过1w+的循环过程中， JIT 逐渐将这些写方法 inline + 编译成 native code。</p>
+<p>具体这个 log 的条件可以参考下面的源码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// from http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/opto/bytecodeInfo.cpp#l280</span></span><br><span class="line"><span class="keyword">if</span> (!callee_method-&gt;force_inline()) &#123;</span><br><span class="line">  <span class="keyword">if</span> (callee_method-&gt;has_compiled_code() &amp;&amp;</span><br><span class="line">      callee_method-&gt;instructions_size() &gt; InlineSmallCode) &#123;</span><br><span class="line">		<span class="comment">// InlineSmallCode is 2000 bytes, inline method max size, depends on vm implamentation</span></span><br><span class="line">    <span class="comment">// form http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/advancedThresholdPolicy.cpp#l59</span></span><br><span class="line">    set_msg(<span class="string">&quot;already compiled into a big method&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="4-Native-Code"><a href="#4-Native-Code" class="headerlink" title="4. Native Code"></a>4. Native Code</h1><ul>
+<li>-XX:+PrintAssembly<ul>
+<li>print the asm code</li>
+</ul>
+</li>
+</ul>
+<p>前面的 hello world 就会变成下面的样子（未开启分层编译，开了之后6k+行）</p>
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[Disassembling for mach=&#x27;i386:x86<span class="number">-64</span>&#x27;]</span><br><span class="line">[Entry Point]</span><br><span class="line">[Constants]</span><br><span class="line">  # &#123;method&#125; &#123;<span class="number">0x0000000117b0a000</span>&#125; &#x27;hashCode&#x27; &#x27;<span class="punctuation">()</span>I&#x27; in &#x27;java/lang/String&#x27;</span><br><span class="line">  #           [sp<span class="number">+0x30</span>]  <span class="punctuation">(</span>sp of caller<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x000000010b61de60</span>: mov    <span class="number">0x8</span><span class="punctuation">(</span>%rsi<span class="punctuation">)</span>,%r10d</span><br><span class="line">  <span class="number">0x000000010b61de64</span>: shl    <span class="variable">$0x3</span>,%r10</span><br><span class="line">  <span class="number">0x000000010b61de68</span>: cmp    %r10,%rax</span><br><span class="line">  <span class="number">0x000000010b61de6b</span>: jne    <span class="number">0x000000010b5f3e60</span>  ;   &#123;runtime_call&#125;</span><br><span class="line">  <span class="number">0x000000010b61de71</span>: data32 xchg %ax,%ax</span><br><span class="line">  <span class="number">0x000000010b61de74</span>: nopl   <span class="number">0x0</span><span class="punctuation">(</span>%rax,%rax,<span class="number">1</span><span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x000000010b61de7c</span>: data32 data32 xchg %ax,%ax</span><br><span class="line">[Verified Entry Point]</span><br><span class="line">  <span class="number">0x000000010b61de80</span>: mov    %eax,<span class="number">-0x14000</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x000000010b61de87</span>: push   %rbp</span><br><span class="line">  <span class="number">0x000000010b61de88</span>: sub    <span class="variable">$0x20</span>,%rsp         ;*synchronization entry</span><br><span class="line">                                                ; - java.lang.String::hashCode@<span class="number">-1</span> <span class="punctuation">(</span>line <span class="number">1466</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">... // <span class="number">1000</span>+ lines</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-1-Too-Much-ASM"><a href="#4-1-Too-Much-ASM" class="headerlink" title="4.1 Too Much ASM"></a>4.1 Too Much ASM</h2><p>这里可以做一个对比，源代码只有 3 行，到字节码有不到20行，到 ASM 就 1000+ 行代码了，而且 C2 产生的代码量还会远高于 C1，大概是4倍左右的，因为 C2 做 Inline expansion 等优化。同时由于 C2 在编译优化的时候会 profiling ，会有更多的额外开销。</p>
+<p>下面来看一个例子：</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">0.</span><span class="number">.100000</span>) &#123;</span><br><span class="line">        hello()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">fun</span> <span class="title">hello</span><span class="params">()</span></span>: <span class="built_in">Int</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>+<span class="number">1</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中 hello 的字节码如下，这里其实可以看出编译器还是比较聪明的，直接将 1+1的结果编译了出来，这样就不用加载两个 int 在做加法了。</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> static hello()I</span><br><span class="line">   L0</span><br><span class="line">    LINENUMBER <span class="number">8</span> L0</span><br><span class="line">    ICONST_2          <span class="comment">// 将 2 压入栈</span></span><br><span class="line">    IRETURN</span><br><span class="line">   L1</span><br><span class="line">    MAXSTACK = <span class="number">1</span></span><br><span class="line">    MAXLOCALS = <span class="number">0</span></span><br></pre></td></tr></table></figure>
+
+<p>从 JIT 输出的 log 也可以看出，hello 这个方法最终被 inline 优化了</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">@ <span class="number">14</span>   java.lang.Math::min (<span class="number">11</span> bytes)   (intrinsic)</span><br><span class="line">@ <span class="number">10</span>   TestKt::hello (<span class="number">2</span> bytes)   <span class="keyword">inline</span> (hot)</span><br></pre></td></tr></table></figure>
+
+<p>编译到的 ASM 如下，这里只截取了 Hello 部分的 ASM 其他的过长了就不在这里展示了，注释部分橙色的为自己写的注释其他的是 JVM 生成的：</p>
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[Constants]</span><br><span class="line">  # &#123;method&#125; &#123;<span class="number">0x0000000115d59b48</span>&#125; &#x27;hello&#x27; &#x27;<span class="punctuation">()</span>I&#x27; in &#x27;TestKt&#x27;</span><br><span class="line">  #           [sp<span class="number">+0x20</span>]  <span class="punctuation">(</span>sp of caller<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x00000001094728c0</span>: sub    <span class="variable">$0x18</span>,%rsp         ; 给栈帧分配空间</span><br><span class="line">  <span class="number">0x00000001094728c7</span>: mov    %rbp,<span class="number">0x10</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span>    ;*synchronization entry</span><br><span class="line">                                                ; - TestKt::hello@<span class="number">-1</span> <span class="punctuation">(</span>line <span class="number">8</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x00000001094728cc</span>: mov    <span class="variable">$0x2</span>,%eax          ; 这里的 <span class="number">0x2</span> 就是刚刚 hello 里计算的结果，这里直接吧 <span class="number">2</span> 放入了 eax 寄存器</span><br><span class="line">  <span class="number">0x00000001094728d1</span>: add    <span class="variable">$0x10</span>,%rsp</span><br><span class="line">  <span class="number">0x00000001094728d5</span>: pop    %rbp</span><br><span class="line">  <span class="number">0x00000001094728d6</span>: test   %eax,<span class="number">-0x1e558dc</span><span class="punctuation">(</span>%rip<span class="punctuation">)</span>        # <span class="number">0x000000010761d000</span></span><br><span class="line">                                                ;   &#123;poll_return&#125;</span><br><span class="line">  <span class="number">0x00000001094728dc</span>: retq                      ; <span class="keyword">return</span></span><br></pre></td></tr></table></figure>
+
+<p>上面汇编的信息带有一些额外东西，例如注释（ASM中注释是 ; ），内存地址，寄存器地址，各种 16 进制等。</p>
+<h2 id="4-2-NativeStack"><a href="#4-2-NativeStack" class="headerlink" title="4.2 NativeStack"></a>4.2 NativeStack</h2><p>为了更好的理解后面的内容，这里介绍一下 Native Stack。这个 native stack 是内存中的一段空间，大小依赖于操作系统和程序自身的配置，每个线程会有一个自己的栈。</p>
+<p>在调用方法时，cpu 需要存放方法、参数、变量、返回值等东西，这些就是靠这个 native stack 完成的，一个简单的流程是压栈（push）参数的，然后压栈栈帧，然后出栈（pop）栈帧方法结束。我们使用上面例子中的 main 方法来解释这个过程。</p>
+<p>下面是原始的 main 方法汇编结果，</p>
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">[Constants]</span><br><span class="line">  # &#123;method&#125; &#123;<span class="number">0x0000000115d59a10</span>&#125; &#x27;main&#x27; &#x27;<span class="punctuation">()</span>V&#x27; in &#x27;TestKt&#x27;</span><br><span class="line">  <span class="number">0x00000001094740e0</span>: callq  <span class="number">0x0000000106ab3e6c</span>  ;   &#123;runtime_call&#125;</span><br><span class="line">  <span class="number">0x00000001094740e5</span>: data32 data32 nopw <span class="number">0x0</span><span class="punctuation">(</span>%rax,%rax,<span class="number">1</span><span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x00000001094740f0</span>: mov    %eax,<span class="number">-0x14000</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span> ; 所有方法开始都会有的 mov push sub</span><br><span class="line">  <span class="number">0x00000001094740f7</span>: push   %rbp                ; 主要作用就是加载参数，push stack frame</span><br><span class="line">  <span class="number">0x00000001094740f8</span>: sub    <span class="variable">$0x20</span>,%rsp          ; </span><br><span class="line">  <span class="number">0x00000001094740fc</span>: mov    <span class="punctuation">(</span>%rsi<span class="punctuation">)</span>,%r13d</span><br><span class="line">  <span class="number">0x00000001094740ff</span>: mov    <span class="number">0x8</span><span class="punctuation">(</span>%rsi<span class="punctuation">)</span>,%ebx</span><br><span class="line">  <span class="number">0x0000000109474102</span>: mov    %rsi,%rdi</span><br><span class="line">  <span class="number">0x0000000109474105</span>: movabs <span class="variable">$0x106b12eaa</span>,%r10</span><br><span class="line">  <span class="number">0x000000010947410f</span>: callq  *%r10              ;*iload_0</span><br><span class="line">                                                ; - TestKt::main@<span class="number">5</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x0000000109474112</span>: cmp    %r13d,%ebx         ; kotlin 的 for 循环这里不会放一个 <span class="variable">$0x186a0</span>，但是 while 会，比较神奇</span><br><span class="line">  <span class="number">0x0000000109474115</span>: jg     <span class="number">0x000000010947412d</span>  ;*if_icmpgt</span><br><span class="line">                                                ; - TestKt::main@<span class="number">7</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x0000000109474117</span>: nopw   <span class="number">0x0</span><span class="punctuation">(</span>%rax,%rax,<span class="number">1</span><span class="punctuation">)</span>   ; <span class="number">64</span>位</span><br><span class="line">  <span class="number">0x0000000109474120</span>: inc    %ebx               ; OopMap&#123;off=<span class="number">66</span>&#125;</span><br><span class="line">                                                ;*goto</span><br><span class="line">                                                ; - TestKt::main@<span class="number">17</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x0000000109474122</span>: test   %eax,<span class="number">-0x1e57128</span><span class="punctuation">(</span>%rip<span class="punctuation">)</span>        # <span class="number">0x000000010761d000</span></span><br><span class="line">                                                ;*goto</span><br><span class="line">                                                ; - TestKt::main@<span class="number">17</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line">                                                ;   &#123;poll&#125;</span><br><span class="line">  <span class="number">0x0000000109474128</span>: cmp    %r13d,%ebx</span><br><span class="line">  <span class="number">0x000000010947412b</span>: jle    <span class="number">0x0000000109474120</span>  ;*if_icmpgt</span><br><span class="line">                                                ; - TestKt::main@<span class="number">7</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x000000010947412d</span>: mov    <span class="variable">$0xffffff65</span>,%esi</span><br><span class="line">  <span class="number">0x0000000109474132</span>: mov    %ebx,<span class="number">0x4</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x0000000109474136</span>: mov    %r13d,<span class="number">0x8</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x000000010947413b</span>: callq  <span class="number">0x00000001094456a0</span>  ; OopMap&#123;off=<span class="number">96</span>&#125;</span><br><span class="line">                                                ;*if_icmpgt</span><br><span class="line">                                                ; - TestKt::main@<span class="number">7</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line">                                                ;   &#123;runtime_call&#125;</span><br><span class="line">  <span class="number">0x0000000109474140</span>: callq  <span class="number">0x0000000106ab3e6c</span>  ;*goto</span><br><span class="line">                                                ; - TestKt::main@<span class="number">17</span> <span class="punctuation">(</span>line <span class="number">2</span><span class="punctuation">)</span></span><br><span class="line">                                                ;   &#123;runtime_call&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span>: push   %rbp                ; 所有方法开始都会有的 mov push sub,主要作用就是加载参数，push stack frame</span><br><span class="line"><span class="number">2</span>: cmp    <span class="variable">$0x186a0</span>,%ebx       ; kotlin 的 for 循环这里不会放一个 <span class="variable">$0x186a0</span>，但是 while 会，比较神奇</span><br><span class="line"><span class="number">3</span>: jg     <span class="number">7</span>  </span><br><span class="line"><span class="number">4</span>: nopw   <span class="number">0x0</span><span class="punctuation">(</span>%rax,%rax,<span class="number">1</span><span class="punctuation">)</span></span><br><span class="line"><span class="number">5</span>: inc    %ebx                ; <span class="number">+1</span></span><br><span class="line"><span class="number">6</span>: cmp    %r13d,%ebx</span><br><span class="line"><span class="number">7</span>: jle    <span class="number">5</span>  </span><br><span class="line"><span class="number">8</span>: retq    <span class="variable">$0xffffff65</span>,%esi</span><br><span class="line"> </span><br></pre></td></tr></table></figure>
+
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># &#123;method&#125; &#123;<span class="number">0x000000011cc1abe8</span>&#125; &#x27;tiny&#x27; &#x27;<span class="punctuation">()</span>I&#x27; in &#x27;TestKt&#x27;</span><br><span class="line">  #           [sp<span class="number">+0x20</span>]  <span class="punctuation">(</span>sp of caller<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x00000001100208c0</span>: sub    <span class="variable">$0x18</span>,%rsp</span><br><span class="line">  <span class="number">0x00000001100208c7</span>: mov    %rbp,<span class="number">0x10</span><span class="punctuation">(</span>%rsp<span class="punctuation">)</span>    ;*synchronization entry</span><br><span class="line">                                                ; - TestKt::tiny@<span class="number">-1</span> <span class="punctuation">(</span>line <span class="number">8</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line">  <span class="number">0x00000001100208cc</span>: mov    <span class="variable">$0x2</span>,%eax          ; <span class="number">1</span><span class="number">+1</span>=<span class="number">2</span></span><br><span class="line">  <span class="number">0x00000001100208d1</span>: add    <span class="variable">$0x10</span>,%rsp</span><br><span class="line">  <span class="number">0x00000001100208d5</span>: pop    %rbp</span><br><span class="line">  <span class="number">0x00000001100208d6</span>: test   %eax,<span class="number">-0x711a8dc</span><span class="punctuation">(</span>%rip<span class="punctuation">)</span>        # <span class="number">0x0000000108f06000</span>  ; safepoint</span><br><span class="line">                                                ;   &#123;poll_return&#125;</span><br><span class="line">  <span class="number">0x00000001100208dc</span>: retq</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight wasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># &#123;method&#125; &#123;<span class="number">0x000000011cc1abe8</span>&#125; &#x27;tiny&#x27; &#x27;<span class="punctuation">()</span>I&#x27; in &#x27;TestKt&#x27;</span><br><span class="line">  #           [sp<span class="number">+0x20</span>]  <span class="punctuation">(</span>sp of caller<span class="punctuation">)</span></span><br><span class="line">  <span class="number">0x00000001100208cc</span>: mov    <span class="variable">$0x2</span>,%eax          ; <span class="number">1</span><span class="number">+1</span>=<span class="number">2</span></span><br><span class="line">  <span class="number">0x00000001100208dc</span>: retq</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-3-SafePoint"><a href="#4-3-SafePoint" class="headerlink" title="4.3 SafePoint"></a>4.3 SafePoint</h2><p>当 JVM 中的所有线程都达到 SafePoint 的时候就会触发 gc，JVM会在分配内存与代码块结束的位置插入SafePoint</p>
+<h2 id="4-4-OSR-On-Stack-Replacement"><a href="#4-4-OSR-On-Stack-Replacement" class="headerlink" title="4.4 OSR(On-Stack Replacement)"></a>4.4 OSR(On-Stack Replacement)</h2><p>OSR 有些复杂，具体可以看<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/45910849">R大的一个知乎回答</a></p>
+<h1 id="5-So-What"><a href="#5-So-What" class="headerlink" title="5. So What"></a>5. So What</h1><ul>
+<li>final fields</li>
+</ul>
+<p>can’t be modify</p>
+<p>编译期优化（inlines constants）</p>
+<p>但是下面这种情况就有些无能为力了</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">&quot;test&quot;</span>.hasdcode()</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>synchronization</li>
+</ul>
+<p>可重入锁</p>
+<ul>
+<li>volatile</li>
+</ul>
+<p>not pre-init a volatile object</p>
+<p>因为这样asm会加一个锁</p>
+<ul>
+<li>string switch</li>
+</ul>
+<p>branch 跳转一个是O(1)的时间一个是二分查找O(logn)</p>
+<p>涉及到两个指令 tableswitch、lookupswitch</p>
+<p>特例string switch，主要是hash之后再equal的开销</p>
+<p>最终关系到hashtable的表的大小，这个表的大小对 JIT 优化有些影响</p>
+<ul>
+<li>lambda</li>
+</ul>
+<p>主要是invokedynamic这个指令，涉及到动态创建 class 的问题</p>
+<p>有的写法可以使 JIT 去 inline lambda 方法体，但是大多数时候 JIT 是无法优化的</p>
+<h1 id="6-Reference"><a href="#6-Reference" class="headerlink" title="6. Reference"></a>6. Reference</h1><p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/81941373">深入理解Java即时编译器（JIT）-上篇</a></p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/82118137">深入理解Java即时编译器（JIT）-下篇</a></p>
+<p><a target="_blank" rel="noopener" href="https://juejin.im/post/6844904198631325703">小师妹学JVM之:JIT中的PrintCompilation</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=HBKVdJph_oQ&t=592s">From Java to Assembly Down the Rabbit Hole (Charles Oliver Nutter, Red Hat)</a></p>
+<p><a target="_blank" rel="noopener" href="http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/2b2511bd3cc8/src/share/vm/runtime/advancedThresholdPolicy.hpp#l34">jdk8u&#x2F;jdk8u&#x2F;hotspot: 2b2511bd3cc8 src&#x2F;share&#x2F;vm&#x2F;runtime&#x2F;advancedThresholdPolicy.hpp</a></p>
+<p><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/41134037/whats-this-new-column-in-xxprintcompilation-output">What’s this new column in -XX:+PrintCompilation output?</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/question/48996839">ART是如何保证checkpoint 点一定会被跑到的?</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/question/45910849">OSR（On-Stack Replacement）是怎样的机制？</a></p>
+<p><a target="_blank" rel="noopener" href="https://developer.ibm.com/zh/articles/j-lo-just-in-time/">深入浅出 JIT 编译器</a></p>
+<p><a target="_blank" rel="noopener" href="https://compilers.cs.uni-saarland.de/ssasem/talks/Christian.Wimmer.pdf"></a></p>
+<p><a target="_blank" rel="noopener" href="http://www.christianwimmer.at/Publications/Wimmer04a/Wimmer04a.pdf"></a></p>
+<p><a target="_blank" rel="noopener" href="https://chrisseaton.com/truffleruby/jokerconf17/">Understanding How Graal Works - a Java JIT Compiler Written in Java</a></p>
+<p><a target="_blank" rel="noopener" href="http://zhongmingmao.me/2019/01/02/jvm-advanced-jit/">JVM进阶 – 浅谈即时编译</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/02/28/2019/2019.2%20bug%E6%B1%87%E6%80%BB/" rel="prev" title="2019.2 BUG 汇总">
+                  <i class="fa fa-chevron-left"></i> 2019.2 BUG 汇总
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/" rel="next" title="Roots &amp; Memory Leaks">
+                  Roots &amp; Memory Leaks <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bill Lv</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-app-compat.js" integrity="sha256-BZqADJTynzztcubgFmplXDkhMk7o/6KO4tHzL8X+biE=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-firestore-compat.js" integrity="sha256-8Y5+rcygX0v5tCQhOjr4rob7oykEcp6IhhutNKKGzfk=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="firestore" type="application/json">{"enable":true,"collection":"articles","apiKey":"AIzaSyAUEkp4sjguJNc-EW2Hu8T3WQ57z931SbA","projectId":"blog-7bba0"}</script>
+  <script src="/js/third-party/statistics/firestore.js"></script>
+
+
+
+
+</body>
+</html>

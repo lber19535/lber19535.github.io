@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="manifest" href="/manifest.json">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lber19535.github.io","root":"/","images":"/images","scheme":"Mist","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="每月bug技术总结">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2019.2 BUG 汇总">
+<meta property="og:url" content="https://lber19535.github.io/2019/02/28/2019/2019.2%20bug%E6%B1%87%E6%80%BB/index.html">
+<meta property="og:site_name" content="LOST HOME">
+<meta property="og:description" content="每月bug技术总结">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2019-02-28T17:00:00.000Z">
+<meta property="article:modified_time" content="2022-08-30T09:51:54.416Z">
+<meta property="article:author" content="Bill Lv">
+<meta property="article:tag" content="Android">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://lber19535.github.io/2019/02/28/2019/2019.2%20bug%E6%B1%87%E6%80%BB/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://lber19535.github.io/2019/02/28/2019/2019.2%20bug%E6%B1%87%E6%80%BB/","path":"2019/02/28/2019/2019.2 bug汇总/","title":"2019.2 BUG 汇总"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>2019.2 BUG 汇总 | LOST HOME</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S001LDMM2K"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-S001LDMM2K","only_pageview":false}</script>
+  <script src="/js/third-party/analytics/google-analytics.js"></script>
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">LOST HOME</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">YESTERDAY YOU SAID TOMORROW</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-RecyclerView-%E6%97%A0%E6%B3%95%E6%AD%A3%E5%B8%B8%E5%9B%9E%E6%94%B6-View"><span class="nav-number">1.</span> <span class="nav-text">1. RecyclerView 无法正常回收 View </span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-RecyclerView-%E4%B8%AD-payloads-%E4%B8%A2%E5%A4%B1%E9%97%AE%E9%A2%98"><span class="nav-number">2.</span> <span class="nav-text">2. RecyclerView 中 payloads 丢失问题 </span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-RecyclerView-crash"><span class="nav-number">3.</span> <span class="nav-text">3. RecyclerView crash </span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E6%92%AD%E6%94%BE%E5%99%A8%E6%80%BB%E6%98%AF-onLayout-%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">4. 播放器总是 onLayout 的问题 </span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bill Lv</p>
+  <div class="site-description" itemprop="description">YESTERDAY YOU SAID TOMORROW</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://lber19535.github.io/2019/02/28/2019/2019.2%20bug%E6%B1%87%E6%80%BB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bill Lv">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LOST HOME">
+      <meta itemprop="description" content="YESTERDAY YOU SAID TOMORROW">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="2019.2 BUG 汇总 | LOST HOME">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2019.2 BUG 汇总
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2019-02-28 17:00:00" itemprop="dateCreated datePublished" datetime="2019-02-28T17:00:00+00:00">2019-02-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-08-30 09:51:54" itemprop="dateModified" datetime="2022-08-30T09:51:54+00:00">2022-08-30</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Android/" itemprop="url" rel="index"><span itemprop="name">Android</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span class="firestore-visitors-count"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>每月bug技术总结</p>
+<span id="more"></span>
+
+<h3 id="1-RecyclerView-无法正常回收-View"><a href="#1-RecyclerView-无法正常回收-View" class="headerlink" title="1. RecyclerView 无法正常回收 View "></a>1. RecyclerView 无法正常回收 View <br/></h3><p><strong>问题描述</strong>：RecyclerView 中的 item 无法回收 <br/><br><strong>问题解决</strong>：在这个问题中由于 item 的 View 一直在 onlayout 状态，导致了 item 的状态一直处于 PFLAG_FORCE_LAYOUT 或者 PFLAG_INVALIDATED 之类的状态中导致 RecyclerView 在回收时认为这个 View 处于临时状态所以会回收失败。当回收失败的时候会有 onFailedToRecycleView 方法的的回调，这个方法默认会返回 false，意思是无法回收就创建新的 ViewHolder。在这次的问题里，由于 onLyaout 的触发是由 item 中其他 View 设计问题导致的，所以这里只能返回 true 来进行强制回收。主要的逻辑位于 RecyclerView.Recycler 中的 recycleViewHolderInternal 方法中涉及到 forceRecycle 的部分  <br/><br><strong>相关blog</strong>：<br>    <a target="_blank" rel="noopener" href="https://www.sunmoonblog.com/2017/02/21/bug-rv-on-failed-to-recycle-view/">Bug系列之onFailedToRecycleView引发的诡异问题</a></p>
+<h3 id="2-RecyclerView-中-payloads-丢失问题"><a href="#2-RecyclerView-中-payloads-丢失问题" class="headerlink" title="2. RecyclerView 中 payloads 丢失问题 "></a>2. RecyclerView 中 payloads 丢失问题 <br/></h3><p><strong>问题描述</strong>：RecyclerView 在使用 payloads 的时候有些 item 的 onBindViewHolder 收到的回调会出现 payloads 丢失的情况 <br/><br><strong>问题解决</strong>：根据文档中 notifyItemChanged 的描述，当使用该方法时如果 notify 的 item 没有被调用过 onBindViewHolder 方法，则对应的 payloads 传过去就是空。对此的解释就是当 view 没有 attach 上的时候 payloads 会被丢弃</p>
+<h3 id="3-RecyclerView-crash"><a href="#3-RecyclerView-crash" class="headerlink" title="3. RecyclerView crash "></a>3. RecyclerView crash <br/></h3><p><strong>问题描述</strong>：ViewHolder views must not be attached when created. Ensure that you are not passing ‘true’ to the attachToRoot parameter of LayoutInflater.inflate(…, boolean attachToRoot) <br/><br><strong>问题解决</strong>：虽然网上有众多和这个 exception 相关的文章，但是和我们遇到的情况都不一样。这个问题源自 onCreateViewHolder 在创建 holder 的时候将一个已经 attach 到 recyclerview 中的 view 又传给了新 new 出来的 holder 导致了这个问题，解决方法有两种：1.通过 layoutmanager 将 view remove 后交给新的 holder 2.new 一个新的 view 交给 holder</p>
+<h3 id="4-播放器总是-onLayout-的问题"><a href="#4-播放器总是-onLayout-的问题" class="headerlink" title="4. 播放器总是 onLayout 的问题 "></a>4. 播放器总是 onLayout 的问题 <br/></h3><p><strong>问题描述</strong>： 在播放器播放时视频的时候总是会不断的触发onLayout，导致界面不断重绘，性能较差<br/><br><strong>问题解决</strong>： 由于在当前页面还包括播放器的进度条 ProgressBar 和显示时间的TextView，在播放过程中会不断的通过回调修改这两个 View 的值和状态，在定义这两个 View 是给的宽高用了 match_parent 和 wrap_content 导致每次修改值的时候导致重新计算 View 的大小，在这个场景下其实是没有必要，所以给定固定大小后，onlayout问题解决<br/></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Android/" rel="tag"># Android</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2018/08/18/2018/%E6%8E%8C%E6%8F%A1%20Kotlin%20%E7%9A%84%20Standard%20Functions%20/" rel="prev" title="掌握 Kotlin 的 Standard Functions : run, with, let, also, apply">
+                  <i class="fa fa-chevron-left"></i> 掌握 Kotlin 的 Standard Functions : run, with, let, also, apply
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/" rel="next" title="Java 与 JIT">
+                  Java 与 JIT <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bill Lv</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-app-compat.js" integrity="sha256-BZqADJTynzztcubgFmplXDkhMk7o/6KO4tHzL8X+biE=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-firestore-compat.js" integrity="sha256-8Y5+rcygX0v5tCQhOjr4rob7oykEcp6IhhutNKKGzfk=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="firestore" type="application/json">{"enable":true,"collection":"articles","apiKey":"AIzaSyAUEkp4sjguJNc-EW2Hu8T3WQ57z931SbA","projectId":"blog-7bba0"}</script>
+  <script src="/js/third-party/statistics/firestore.js"></script>
+
+
+
+
+</body>
+</html>

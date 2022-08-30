@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)"><meta name="generator" content="Hexo 6.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="manifest" href="/manifest.json">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha256-xejo6yLi6vGtAjcMIsY8BHdKsLg7QynVlFMzdQgUuy8=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lber19535.github.io","root":"/","images":"/images","scheme":"Mist","darkmode":true,"version":"8.12.3","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="本文源码基于 Android 29 和 jdk 8">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Roots &amp; Memory Leaks">
+<meta property="og:url" content="https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/index.html">
+<meta property="og:site_name" content="LOST HOME">
+<meta property="og:description" content="本文源码基于 Android 29 和 jdk 8">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/image_1.png">
+<meta property="article:published_time" content="2021-01-19T07:38:37.000Z">
+<meta property="article:modified_time" content="2022-08-30T09:51:54.424Z">
+<meta property="article:author" content="Bill Lv">
+<meta property="article:tag" content="‘Android’">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/image_1.png">
+
+
+<link rel="canonical" href="https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/","path":"2021/01/19/2022/2022-02-20-GC Roots 与 Memory Leaks/","title":"Roots &amp; Memory Leaks"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Roots &amp; Memory Leaks | LOST HOME</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S001LDMM2K"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"G-S001LDMM2K","only_pageview":false}</script>
+  <script src="/js/third-party/analytics/google-analytics.js"></script>
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">LOST HOME</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">YESTERDAY YOU SAID TOMORROW</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li><li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-GC-roots"><span class="nav-number">1.</span> <span class="nav-text">1.GC roots</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-Memory-Leaks"><span class="nav-number">2.</span> <span class="nav-text">2.Memory Leaks</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Activity-%E7%BD%AE%E7%A9%BA%E7%9A%84%E6%97%B6%E6%9C%BA"><span class="nav-number">2.0.1.</span> <span class="nav-text">Activity 置空的时机</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#View-%E4%B8%AD%E7%9A%84-Listener-%E4%BD%95%E6%97%B6%E8%A2%AB%E9%87%8A%E6%94%BE"><span class="nav-number">2.0.2.</span> <span class="nav-text">View 中的 Listener 何时被释放</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Handler-%E6%B3%84%E6%BC%8F"><span class="nav-number">2.0.3.</span> <span class="nav-text">Handler 泄漏</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88-RxJava-%E9%9C%80%E8%A6%81-AutoDispose"><span class="nav-number">2.0.4.</span> <span class="nav-text">为什么 RxJava 需要 AutoDispose</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">3.总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-Reference"><span class="nav-number">4.</span> <span class="nav-text">4.Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Bill Lv</p>
+  <div class="site-description" itemprop="description">YESTERDAY YOU SAID TOMORROW</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://lber19535.github.io/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Bill Lv">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LOST HOME">
+      <meta itemprop="description" content="YESTERDAY YOU SAID TOMORROW">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Roots &amp; Memory Leaks | LOST HOME">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Roots &amp; Memory Leaks
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-01-19 07:38:37" itemprop="dateCreated datePublished" datetime="2021-01-19T07:38:37+00:00">2021-01-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">更新于</span>
+      <time title="修改时间：2022-08-30 09:51:54" itemprop="dateModified" datetime="2022-08-30T09:51:54+00:00">2022-08-30</time>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span class="firestore-visitors-count"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>本文源码基于 Android 29 和 jdk 8</p>
+<span id="more"></span>
+
+<h1 id="1-GC-roots"><a href="#1-GC-roots" class="headerlink" title="1.GC roots"></a>1.GC roots</h1><p>先介绍一下GC roots，对于使用可达性分析的垃圾回收算法来说，GC roots是一个比较特别的存在，垃圾回收器咋回收对象的时候会判断这个对象是不是 GC root 或者是否被 GC root 引用，到这里就会有一个问题，到底什么是 GC root：</p>
+<ol>
+<li><strong>Class</strong> 这里主要指被系统 ClassLoader 加载的 class，自定义 ClassLoader 加载的 class 不是 GC roots。需要注意的一点是静态变量是属于类的</li>
+<li><strong>Tread</strong> 处于活动状态的线程</li>
+<li><strong>Stack Local</strong> 方法中变量和参数</li>
+<li><strong>JNI Local JNI</strong> 方法中的变量和参数</li>
+<li><strong>JNI Global</strong> 全局的 JNI reference，简单来说就是 JNI 中全局创建的引用，因为生命周期的关系，不可避免就会导致对应的泄漏</li>
+<li><strong>Monitor Used</strong> 同步的对象，例如synchronized(同步的对象)</li>
+<li><strong>Held by JVM</strong> 这个取决于对应 JVM 的实现，例如系统的 ClassLoader 和 JVM 本身会用到的一些对象，规范和各家实现没有明确的一个标准，所以分析内存泄漏的时候需要注意一下</li>
+</ol>
+<p>关于方法中的变量作为 GCroots 在这里举一个例子：</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;    </span><br><span class="line">	<span class="keyword">var</span> b:ByteArray? = ByteArray(<span class="number">8</span> * _10MB)    </span><br><span class="line">  b = <span class="literal">null</span>         </span><br><span class="line">  System.gc()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 0.216: [GC (System.gc()) [PSYoungGen: 5245K-&gt;688K(76288K)] 87165K-&gt;82616K(251392K), 0.0010211 secs] [Times: user=0.00 sys=0.00, real=0.01 secs] </span></span><br><span class="line"><span class="comment">// 0.217: [Full GC (System.gc()) [PSYoungGen: 688K-&gt;0K(76288K)] [ParOldGen: 81928K-&gt;549K(175104K)] 82616K-&gt;549K(251392K), [Metaspace: 3318K-&gt;3318K(1056768K)], 0.0090139 secs] [Times: user=0.04 sys=0.00, real=0.01 secs] </span></span><br></pre></td></tr></table></figure>
+
+<p>上面这段在 gc 的时候会输出一段 log，最下面有对应的 log 字段的含义，第一段是 minor gc，展示了新生代从 5245k 降到了 688k，同时 b 这个对象被移到了老年代，第二行 full gc这里展示老年代从 81928k 降到了 549K，回收了大概80M内存。下面看另一个例子：</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;    </span><br><span class="line">	<span class="keyword">var</span> b:ByteArray? = ByteArray(<span class="number">8</span> * _10MB)    </span><br><span class="line">	System.gc()    </span><br><span class="line">	b = <span class="literal">null</span>         </span><br><span class="line">	System.gc()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 0.207: [GC (System.gc()) [PSYoungGen: 5245K-&gt;752K(76288K)] 87165K-&gt;82680K(251392K), 0.0012790 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] </span></span><br><span class="line"><span class="comment">// 0.208: [Full GC (System.gc()) [PSYoungGen: 752K-&gt;0K(76288K)] [ParOldGen: 81928K-&gt;82469K(175104K)] 82680K-&gt;82469K(251392K), [Metaspace: 3318K-&gt;3318K(1056768K)], 0.0119808 secs] [Times: user=0.04 sys=0.01, real=0.01 secs] </span></span><br><span class="line"><span class="comment">// 0.220: [GC (System.gc()) [PSYoungGen: 0K-&gt;0K(76288K)] 82469K-&gt;82469K(251392K), 0.0015803 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] // 0.222: [Full GC (System.gc()) [PSYoungGen: 0K-&gt;0K(76288K)] [ParOldGen: 82469K-&gt;549K(175104K)] 82469K-&gt;549K(251392K), [Metaspace: 3318K-&gt;3318K(1056768K)], 0.0057604 secs] [Times: user=0.04 sys=0.00, real=0.01 secs] </span></span><br></pre></td></tr></table></figure>
+
+<p>这个例子中在 b 被置空前尝试 gc，从 log 看依旧是一次 minor gc 加一次 full gc，但是这次 full gc 并没有让老年代中的内存减少，当吧 b 置为 null 的时候，再去 gc 就可以回收掉了。这两个例子就证明了方法中的变量也是 gc roots。灰色部分是 gc log 的说明</p>
+<p>GC发生时间: [垃圾收集停顿类型: [GC发生区域: GC前该内存区域已使用容量 -&gt; GC后该内存区域已使用容量(该内存区域总容量)] 该内存区域GC所占用的时间] GC前Java堆已使用容量 -&gt; GC后Java堆已使用容量(Java堆总容量)] [user表示用户态消耗的CPU时间，sys表示内核态消耗的CPU时间，real表示操作从开始到结束所经过的墙钟时间]</p>
+<p>下面是 Thread 作为 gc root 的例子，可以结合上面的例子以及代码对应的 log 尝试分析。</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;    </span><br><span class="line">	<span class="keyword">var</span> l:Runnable? = <span class="keyword">object</span> : Runnable&#123;        </span><br><span class="line">		<span class="keyword">val</span> v = A(<span class="number">8</span> * _10MB)        </span><br><span class="line">		<span class="keyword">override</span> <span class="function"><span class="keyword">fun</span> <span class="title">run</span><span class="params">()</span></span> &#123;        &#125;    </span><br><span class="line">	&#125;    </span><br><span class="line">	System.gc()    </span><br><span class="line">	l?.run()    </span><br><span class="line">	l = <span class="literal">null</span>    </span><br><span class="line">	System.gc()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 0.240: [GC (System.gc()) [PSYoungGen: 5245K-&gt;688K(76288K)] 87165K-&gt;82616K(251392K), 0.0014139 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] </span></span><br><span class="line"><span class="comment">// 0.242: [Full GC (System.gc()) [PSYoungGen: 688K-&gt;0K(76288K)] [ParOldGen: 81928K-&gt;82470K(175104K)] 82616K-&gt;82470K(251392K), [Metaspace: 3321K-&gt;3321K(1056768K)], 0.0065966 secs] [Times: user=0.03 sys=0.00, real=0.01 secs] </span></span><br><span class="line"><span class="comment">// 0.249: [GC (System.gc()) [PSYoungGen: 0K-&gt;0K(76288K)] 82470K-&gt;82470K(251392K), 0.0014595 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] // 0.250: [Full GC (System.gc()) [PSYoungGen: 0K-&gt;0K(76288K)] [ParOldGen: 82470K-&gt;549K(175104K)] 82470K-&gt;549K(251392K), [Metaspace: 3321K-&gt;3321K(1056768K)], 0.0060700 secs] [Times: user=0.04 sys=0.00, real=0.01 secs] </span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fun</span> <span class="title">main</span><span class="params">()</span></span> &#123;    </span><br><span class="line">	<span class="keyword">var</span> l:Runnable? = <span class="keyword">object</span> : Runnable&#123;        </span><br><span class="line">		<span class="keyword">val</span> v = A(<span class="number">8</span> * _10MB)        </span><br><span class="line">		<span class="keyword">override</span> <span class="function"><span class="keyword">fun</span> <span class="title">run</span><span class="params">()</span></span> &#123;            </span><br><span class="line">			Thread(<span class="keyword">this</span>).start()        </span><br><span class="line">		&#125;    </span><br><span class="line">	&#125;    </span><br><span class="line">	System.gc()    </span><br><span class="line">	l?.run()    </span><br><span class="line">	l = <span class="literal">null</span>    </span><br><span class="line">	System.gc()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 0.204: [GC (System.gc()) [PSYoungGen: 5245K-&gt;752K(76288K)] 87165K-&gt;82680K(251392K), 0.0015822 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] </span></span><br><span class="line"><span class="comment">// 0.206: [Full GC (System.gc()) [PSYoungGen: 752K-&gt;0K(76288K)] [ParOldGen: 81928K-&gt;82470K(175104K)] 82680K-&gt;82470K(251392K), [Metaspace: 3322K-&gt;3322K(1056768K)], 0.0077315 secs] [Times: user=0.04 sys=0.00, real=0.01 secs] </span></span><br><span class="line"><span class="comment">// 0.214: [GC (System.gc()) [PSYoungGen: 1311K-&gt;96K(76288K)] 83781K-&gt;82566K(251392K), 0.0018011 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] // 0.216: [Full GC (System.gc()) [PSYoungGen: 96K-&gt;0K(76288K)] [ParOldGen: 82470K-&gt;82463K(175104K)] 82566K-&gt;82463K(251392K), [Metaspace: 3322K-&gt;3322K(1056768K)], 0.0064399 secs] [Times: user=0.04 sys=0.00, real=0.01 secs] </span></span><br></pre></td></tr></table></figure>
+
+<p>这里补充一个疑问，System.gc() 在 JVM 和 Android 中有不同的意义, JVM 中的 gc 是立马触发的， Android 中会判断是否需要 gc，这样会出现有的时候使用 Stystem.gc() 没有成功触发 gc。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// JVM</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">gc</span><span class="params">()</span> &#123;    </span><br><span class="line">	Runtime.getRuntime().gc();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Android</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">gc</span><span class="params">()</span> &#123;    </span><br><span class="line">	<span class="type">boolean</span> shouldRunGC;    </span><br><span class="line">	<span class="keyword">synchronized</span> (LOCK) &#123;        </span><br><span class="line">		shouldRunGC = justRanFinalization;        </span><br><span class="line">		<span class="keyword">if</span> (shouldRunGC) &#123;            </span><br><span class="line">			justRanFinalization = <span class="literal">false</span>;        </span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;            </span><br><span class="line">			runGC = <span class="literal">true</span>;        </span><br><span class="line">		&#125;    </span><br><span class="line">	&#125;    </span><br><span class="line">	<span class="keyword">if</span> (shouldRunGC) &#123;        </span><br><span class="line">		Runtime.getRuntime().gc();    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="2-Memory-Leaks"><a href="#2-Memory-Leaks" class="headerlink" title="2.Memory Leaks"></a>2.Memory Leaks</h1><p>内存泄漏的根本原因是对象始终被 GC roots 引用，或者本身作为 GC roots 的对象没有正确置空或者释放导致的，具体到 Android 中，每一个 Activity 和 Fragment 都有自己的生命周期，在其生命周期结束的之后，持有或者被持有的对象如果不能及时释放就会造成内存泄漏，抛去常见的一些情况，这里主要介绍几个在看其他内存泄漏的文章时发现没有被提及的问题。</p>
+<h3 id="Activity-置空的时机"><a href="#Activity-置空的时机" class="headerlink" title="Activity 置空的时机"></a>Activity 置空的时机</h3><p>在正确情况下，Activity 作为主线程持有的一个对象，如果不置空的话，就算生命周期结束了也不会被回收，简单的写一个应用链的关系，其中 MainThread 是 gc roots MainThread-&gt; ActivityThread.mActivities -&gt; ActivityClientRecord.activity -&gt; Activity 在 ActivityThread 中有一个 handleDestroyActivity 方法，如下代码所示，后续的一系列操作也有列出代码，所以可以简单理解为调用完 onDestroy 之后，ActivityThread 所持有的 activity 对象就被置空了，相当于 Activity 这个对象对于 gc roots 来说不可达了，所以它会被回收。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ActivityThreadprivate </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">handleRelaunchActivityInner</span><span class="params">(...)</span> &#123;</span><br><span class="line">	...    </span><br><span class="line">	handleDestroyActivity(...)        </span><br><span class="line">	r.activity = <span class="literal">null</span>;    </span><br><span class="line">	r.window = <span class="literal">null</span>;    </span><br><span class="line">	r.hideForNow = <span class="literal">false</span>;    </span><br><span class="line">	r.nextIdle = <span class="literal">null</span>;    </span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ActivityThreadpublic</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">handleDestroyActivity</span><span class="params">(...)</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	performDestroyActivity(...)    </span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ActivityThreadActivityClientRecord </span></span><br><span class="line">performDestroyActivity(...) &#123;    </span><br><span class="line">	...    </span><br><span class="line">	mInstrumentation.callActivityOnDestroy(r.activity);    </span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Instrumentationpublic </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">callActivityOnDestroy</span><span class="params">(Activity activity)</span> &#123;    </span><br><span class="line">	activity.performDestroy();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Activityfinal </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">performDestroy</span><span class="params">()</span> &#123;</span><br><span class="line">	...</span><br><span class="line">	onDestroy();    </span><br><span class="line">	... </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="View-中的-Listener-何时被释放"><a href="#View-中的-Listener-何时被释放" class="headerlink" title="View 中的 Listener 何时被释放"></a>View 中的 Listener 何时被释放</h3><p>在View中大部分的点击事件都是通过 this 或者匿名内部类传入的，这些东西为什么不会泄露呢？这里继续使用上面说到的引用链 MainThread-&gt; ActivityThread.mActivities -&gt; ActivityClientRecord.activity -&gt; Activity -&gt; decorView -&gt; yourView -&gt; clickListener -&gt; activity &#x2F; anonymous class object(hold outter object refrence)。但实际执行点击事件的是另一个路径：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">PerformClick</span> <span class="keyword">implements</span> <span class="title class_">Runnable</span> &#123;    </span><br><span class="line">	<span class="meta">@Override</span>    </span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;        </span><br><span class="line">		recordGestureClassification(TOUCH_GESTURE_CLASSIFIED__CLASSIFICATION__SINGLE_TAP);        </span><br><span class="line">		performClickInternal();    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">onTouchEvent</span><span class="params">(MotionEvent event)</span> &#123;</span><br><span class="line">	...    </span><br><span class="line">	<span class="keyword">if</span> (mPerformClick == <span class="literal">null</span>) &#123;        </span><br><span class="line">		mPerformClick = <span class="keyword">new</span> <span class="title class_">PerformClick</span>();    </span><br><span class="line">	&#125;    </span><br><span class="line">	</span><br><span class="line">	<span class="keyword">if</span> (!post(mPerformClick)) &#123;        </span><br><span class="line">		performClickInternal();    </span><br><span class="line">	&#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">performClickInternal</span><span class="params">()</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	<span class="keyword">return</span> performClick();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">performClick</span><span class="params">()</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	li.mOnClickListener.onClick(<span class="built_in">this</span>);    </span><br><span class="line">	<span class="comment">// mOnClickListener 这个就是我们 set 进来的那个 listener    </span></span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>所以在 click 事件中也是有 handler 参与的，在 destroy 的时候不仅将 decor 置 null，还通过 removeViewImmediate 移除了 view 中绑定这些 handler 事件，下面是流程</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ActivityThreadpublic </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">handleDestroyActivity</span><span class="params">(...)</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	performDestroyActivity(...)    </span><br><span class="line">	...    </span><br><span class="line">	wm.removeViewImmediate(v);    </span><br><span class="line">	...    </span><br><span class="line">	r.activity.mDecor = <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// WindowManagerImplpublic </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">removeViewImmediate</span><span class="params">(View view)</span> &#123;    </span><br><span class="line">	mGlobal.removeView(view, <span class="literal">true</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// WindowManagerGlobalpublic </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">removeView</span><span class="params">(View view, <span class="type">boolean</span> immediate)</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	removeViewLocked(index, immediate);    </span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// WindowManagerGlobalprivate </span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">removeViewLocked</span><span class="params">(<span class="type">int</span> index, <span class="type">boolean</span> immediate)</span> &#123;    </span><br><span class="line">	...    </span><br><span class="line">	<span class="type">boolean</span> <span class="variable">deferred</span> <span class="operator">=</span> root.die(immediate);    </span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ViewRootImpl</span></span><br><span class="line"><span class="type">boolean</span> <span class="title function_">die</span><span class="params">(<span class="type">boolean</span> immediate)</span> &#123;</span><br><span class="line">  ...</span><br><span class="line">  doDie();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ViewRootImpl</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">doDie</span><span class="params">()</span> &#123;</span><br><span class="line">  ...    </span><br><span class="line">	dispatchDetachedFromWindow();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ViewRootImpl</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">dispatchDetachedFromWindow</span><span class="params">()</span> &#123;</span><br><span class="line">  ...    </span><br><span class="line">	mView.dispatchDetachedFromWindow();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// View</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">dispatchDetachedFromWindow</span><span class="params">()</span> &#123;</span><br><span class="line">  ...    </span><br><span class="line">	onDetachedFromWindowInternal();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// View</span></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">onDetachedFromWindowInternal</span><span class="params">()</span> &#123;</span><br><span class="line">  ...    </span><br><span class="line">	removePerformClickCallback();</span><br><span class="line">  ...&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// View</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">removePerformClickCallback</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (mPerformClick != <span class="literal">null</span>) &#123;</span><br><span class="line">	  removeCallbacks(mPerformClick);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// View</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">removeCallbacks</span><span class="params">(Runnable action)</span> &#123;  </span><br><span class="line">  <span class="keyword">if</span> (action != <span class="literal">null</span>) &#123;  </span><br><span class="line">    <span class="keyword">final</span> <span class="type">AttachInfo</span> <span class="variable">attachInfo</span> <span class="operator">=</span> mAttachInfo;        </span><br><span class="line">		<span class="keyword">if</span> (attachInfo != <span class="literal">null</span>) &#123;</span><br><span class="line">       attachInfo.mHandler.removeCallbacks(action);</span><br><span class="line">	     attachInfo.mViewRootImpl.mChoreographer.removeCallbacks(Choreographer.CALLBACK_ANIMATION, action, <span class="literal">null</span>);</span><br><span class="line">    &#125;        </span><br><span class="line">		getRunQueue().removeCallbacks(action);    </span><br><span class="line">	&#125;    </span><br><span class="line">	<span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Handler-泄漏"><a href="#Handler-泄漏" class="headerlink" title="Handler 泄漏"></a>Handler 泄漏</h3><p>分析了前面两种情况，就开始怀疑了，那 Handler 和 ClickListener 的情况明明相同，为什么 Handler 会泄漏呢。</p>
+<p>下面是一个典型的 Handler 泄漏路径，从图中可以看到 gc root 是 input or output parameters in native code，这个提示来自 LeakCanary 的 NativeStack，表示泄漏来自于 native 的入参或者出参，由于 MessageQueue 使用了一些 JNI 方法，JNI 方法在调用的时候会传入当前 class 对象或者 方法所属对象，图中的提示来看，应该是 MessageQueue 被传入了，在最开始有说过 JNI 的参数也是 gc root 的一种，这种泄漏大多数情况是由于 postdelay 导致的，也有少部分情况是普通的 post 但是由于前面消息的堆积，导致在 LeakCanary 在检查的时候还没有执行完，所以泄漏了。但是不管哪一种，这两种 Handler 的泄漏都有崩溃的可能，因为通常 post 或者 postDelay 都要处理 UI 相关的东西，但实际上已经 destroy 了，这时候处理 UI 如果没有 nullsafe 肯定是必崩了。</p>
+<p><img src="/2021/01/19/2022/2022-02-20-GC%20Roots%20%E4%B8%8E%20Memory%20Leaks/image_1.png" alt="GC%20roots%20&amp;%203c5e7/Untitled.png"></p>
+<p>这里有一个 Java 和 Kotlin 的区别，我在 <a target="_blank" rel="noopener" href="https://stackoverflow.com/a/62606529/2958780">StackOverflow</a>上也做了回答，简单来说就是如果是用 Kotlin 的话如下代码是不会引用到外部类的，所以就算使用这个 handler1 去 postDelay 也不会导致泄漏。如果里面引用了外部类的方法，那么就会持有外部类了。</p>
+<figure class="highlight kotlin"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> handler1: Handler = <span class="keyword">object</span> : Handler() &#123;    </span><br><span class="line">	<span class="keyword">override</span> <span class="function"><span class="keyword">fun</span> <span class="title">handleMessage</span><span class="params">(msg: <span class="type">Message</span>?)</span></span> &#123;        </span><br><span class="line">		<span class="keyword">super</span>.handleMessage(msg)        </span><br><span class="line">		println(<span class="string">&quot;Hello~1&quot;</span>)    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 反编译后的代码</span></span><br><span class="line"><span class="keyword">public</span> static <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span>$<span class="title">onCreate</span>$<span class="title">handler1</span>$1 <span class="title">extends</span> <span class="title">Handler</span> </span>&#123;    </span><br><span class="line">	<span class="keyword">public</span> void handleMessage(<span class="meta">@Nullable</span> <span class="keyword">final</span> Message msg) &#123;        </span><br><span class="line">		<span class="keyword">super</span>.handleMessage(msg);        </span><br><span class="line">		Log.e(<span class="string">&quot;LOG&quot;</span>, <span class="string">&quot;Hello~1&quot;</span>);    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> handler2 = Handler(<span class="keyword">object</span> : Handler.Callback &#123;    </span><br><span class="line">	<span class="keyword">override</span> <span class="function"><span class="keyword">fun</span> <span class="title">handleMessage</span><span class="params">(msg: <span class="type">Message</span>)</span></span>: <span class="built_in">Boolean</span> &#123;        </span><br><span class="line">		println(<span class="string">&quot;Hello~2&quot;</span>)        </span><br><span class="line">		test()    <span class="comment">// outter class method        </span></span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span>    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 反编译后的代码</span></span><br><span class="line"><span class="keyword">public</span> static <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span>$<span class="title">onCreate</span>$<span class="title">handler2</span>$1 <span class="title">implements</span> <span class="title">Handler</span>$<span class="title">Callback</span> </span>&#123;    </span><br><span class="line">	<span class="keyword">public</span> boolean handleMessage(<span class="meta">@NotNull</span> <span class="keyword">final</span> Message msg) &#123;        </span><br><span class="line">		Intrinsics.checkParameterIsNotNull((Object)msg, <span class="string">&quot;msg&quot;</span>);        </span><br><span class="line">		Log.e(<span class="string">&quot;LOG&quot;</span>, <span class="string">&quot;Hello~2&quot;</span>);        </span><br><span class="line">		<span class="keyword">this</span>.<span class="keyword">this</span>$<span class="number">0.</span>test();        </span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span>;    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>如果这段逻辑是 Java 写的，就算里面没有用到外部类的方法也会持有外部类的引用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Handler</span> <span class="variable">handler1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Handler</span>() &#123;    </span><br><span class="line">	<span class="meta">@Override</span>    </span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handleMessage</span><span class="params">(Message msg)</span> &#123;        </span><br><span class="line">		<span class="built_in">super</span>.handleMessage(msg);        </span><br><span class="line">		Log.e(<span class="string">&quot;LOG&quot;</span>, <span class="string">&quot;Hello~1&quot;</span>);    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 反编译代码</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">TestLeakActivity$1</span> <span class="keyword">extends</span> <span class="title class_">Handler</span> &#123;    </span><br><span class="line">	TestLeakActivity$<span class="number">1</span>(TestLeakActivity <span class="built_in">this</span>$<span class="number">0</span>) &#123;        </span><br><span class="line">		<span class="built_in">this</span>.<span class="built_in">this</span>$<span class="number">0</span> = <span class="built_in">this</span>$<span class="number">0</span>;    </span><br><span class="line">	&#125;    </span><br><span class="line">	</span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">handleMessage</span><span class="params">(Message msg)</span> &#123;        </span><br><span class="line">		<span class="built_in">super</span>.handleMessage(msg);        </span><br><span class="line">		Log.e(<span class="string">&quot;LOG&quot;</span>, <span class="string">&quot;Hello~1&quot;</span>);    </span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="为什么-RxJava-需要-AutoDispose"><a href="#为什么-RxJava-需要-AutoDispose" class="headerlink" title="为什么 RxJava 需要 AutoDispose"></a>为什么 RxJava 需要 AutoDispose</h3><p>经过上面的分析，其实结论已经比较清晰，RxJava 方便的切线程能力会让整个流上的对象在不同的线程里切来切去，而线程又是 gc root，很容易泄漏，所以对 AutoDispose 算是刚需，否则每个流都要保存一个 disposable 对象，最后在 destroy 的时候挨个 dispose 也太麻烦了。</p>
+<h1 id="3-总结"><a href="#3-总结" class="headerlink" title="3.总结"></a>3.总结</h1><p>内存泄漏更像是不那么良好的编程习惯导致的，例如最开始的例子，方法中 new 了以个大对象，可能在方法开始的几行还在使用，如果后面不用到的话可以及时置 null，这样不会在方法执行完之后导致一次 gc 太多东西提升gc效率，在 Android 的虚拟机中没有类似 JVM 中的并发 gc，所以 gc 还是要不可避免的导致暂停进而影响一部分性能</p>
+<h1 id="4-Reference"><a href="#4-Reference" class="headerlink" title="4.Reference"></a>4.Reference</h1><p><a target="_blank" rel="noopener" href="https://joyrun.github.io/2016/08/08/AndroidMemoryLeak/">利用Android Studio、MAT对Android进行内存泄漏检测</a></p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/u013270444/article/details/90476591">Java 垃圾回收机 GC Roots详解（Garbage Collection Roots）_Never Give up!-CSDN博客</a></p>
+<p><a target="_blank" rel="noopener" href="https://medium.com/platform-engineer/understanding-java-garbage-collection-54fc9230659a">Understanding Java Garbage Collection</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.yourkit.com/docs/java/help/gc_roots.jsp">GC roots</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/question/53613423/answer/135743258">java的gc为什么要分代？</a></p>
+<p><a target="_blank" rel="noopener" href="https://mingshan.fun/2018/04/17/gc-log/">理解GC日志</a></p>
+<p><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/52286818/can-this-code-avoid-the-android-handler-memory-leak/62606529#62606529">Can this code avoid the Android handler memory leak?</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/12/09/2022/2022-02-20-Java%E4%B8%8EJIT/" rel="prev" title="Java 与 JIT">
+                  <i class="fa fa-chevron-left"></i> Java 与 JIT
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/06/30/2022/2022-02-20-Jetpack%20Compose%20-%20In-depth%20understanding/" rel="next" title="Jetpack Compose - In-depth understanding">
+                  Jetpack Compose - In-depth understanding <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Bill Lv</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-app-compat.js" integrity="sha256-BZqADJTynzztcubgFmplXDkhMk7o/6KO4tHzL8X+biE=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.9.1/firebase-firestore-compat.js" integrity="sha256-8Y5+rcygX0v5tCQhOjr4rob7oykEcp6IhhutNKKGzfk=" crossorigin="anonymous"></script>
+  <script class="next-config" data-name="firestore" type="application/json">{"enable":true,"collection":"articles","apiKey":"AIzaSyAUEkp4sjguJNc-EW2Hu8T3WQ57z931SbA","projectId":"blog-7bba0"}</script>
+  <script src="/js/third-party/statistics/firestore.js"></script>
+
+
+
+
+</body>
+</html>
